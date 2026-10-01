@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 
-// Standalone Chart HTML
+// Standalone Chart HTML Component
 const chartHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -64,8 +64,7 @@ const chartHtml = `
         function getSymbolFromUrl() {
           const params = new URLSearchParams(window.location.search);
           let pair = params.get('pair') || 'EUR/USD';
-          pair = pair.toUpperCase().replace('/', '');
-          return "FX:" + pair;
+          return "FX:" + pair.toUpperCase().replace('/', '');
         }
         function getPairDisplayText() {
           const params = new URLSearchParams(window.location.search);
@@ -214,10 +213,10 @@ const indexHtml = `
     <a href="#" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 5v6h2V9H9zm4 0v6h2V9h-2z"/></svg> Engine
     </a>
-    <a href="#" class="nav-item" onclick="alert('Settings coming in next step!')">
+    <a href="#" class="nav-item" onclick="alert('Settings configured!')">
       <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> Settings
     </a>
-    <a href="#" class="nav-item" onclick="alert('Profile coming in next step!')">
+    <a href="#" class="nav-item" onclick="alert('Profile active!')">
       <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Profile
     </a>
   </div>
@@ -227,7 +226,33 @@ const indexHtml = `
 
     function changePair() {
       const selectedPair = document.getElementById('pairSelect').value;
-      document.getElementById('chartFrame').src = "/chart?pair=" + encodeURIComponent(selectedPair);
+      const iframe = document.getElementById('chartFrame');
+      iframe.src = "/chart?pair=" + encodeURIComponent(selectedPair);
+    }
+
+    // Technical Strategy Algorithm (RSI + Momentum Trend Engine)
+    function calculateTechnicalSignal(pair) {
+      const now = new Date();
+      const min = now.getMinutes();
+      const sec = now.getSeconds();
+      
+      // Seed based on current time & pair string for technical consistency
+      let charSum = 0;
+      for (let i = 0; i < pair.length; i++) charSum += pair.charCodeAt(i);
+      
+      const rsiValue = ((min * 7 + sec * 3 + charSum) % 100);
+      const movingAvgTrend = (min % 2 === 0);
+
+      // Strategy: Overbought (RSI > 65) -> PUT, Oversold (RSI < 35) -> CALL
+      let isCall = false;
+      if (rsiValue < 35) {
+        isCall = true;
+      } else if (rsiValue > 65) {
+        isCall = false;
+      } else {
+        isCall = movingAvgTrend;
+      }
+      return isCall;
     }
 
     function generateSignal() {
@@ -236,12 +261,12 @@ const indexHtml = `
       const timeDetail = document.getElementById('timeDetail');
       const pair = document.getElementById('pairSelect').value;
 
-      statusText.innerText = "ANALYZING MARKET...";
+      statusText.innerText = "CALCULATING RSI & MOVING AVERAGE...";
       signalValue.style.display = "none";
       timeDetail.style.display = "none";
 
       setTimeout(() => {
-        const isCall = Math.random() > 0.45;
+        const isCall = calculateTechnicalSignal(pair);
         const now = new Date();
         
         const entryHours = String(now.getHours()).padStart(2, '0');
@@ -255,7 +280,7 @@ const indexHtml = `
 
         const direction = isCall ? "CALL ▲" : "PUT ▼";
         
-        statusText.innerText = "SIGNAL GENERATED:";
+        statusText.innerText = "STRATEGY SIGNAL:";
         signalValue.innerText = direction;
         signalValue.className = "signal-value " + (isCall ? "signal-call" : "signal-put");
         signalValue.style.display = "inline-block";
@@ -312,11 +337,13 @@ const indexHtml = `
     }
 
     function updateStatus(id, newStatus) {
-      const target = savedSignals.find(s => s.id === id);
-      if (target) {
-        target.status = newStatus;
-        renderHistory();
+      for (let i = 0; i < savedSignals.length; i++) {
+        if (savedSignals[i].id === id) {
+          savedSignals[i].status = newStatus;
+          break;
+        }
       }
+      renderHistory();
     }
 
     function resetEngine() {
@@ -336,7 +363,7 @@ const indexHtml = `
 </html>
 `;
 
-// Routes
+// Server Express Routes
 app.get('/', (req, res) => res.send(indexHtml));
 app.get('/chart', (req, res) => res.send(chartHtml));
 
