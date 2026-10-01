@@ -52,7 +52,7 @@ const chartHtml = `
 <body>
   <div class="chart-wrapper">
     <div class="inner-border"></div>
-    <div class="pair-badge" id="pairName">5 USD/JPY</div>
+    <div class="pair-badge" id="pairName">5 EUR/USD</div>
     <div class="brand-header">
       <div class="brand-crowns">♔ ♔ ♔</div>
       <div class="brand-title">DARK SECRET</div>
@@ -63,13 +63,13 @@ const chartHtml = `
       <script type="text/javascript">
         function getSymbolFromUrl() {
           const params = new URLSearchParams(window.location.search);
-          let pair = params.get('pair') || 'USD/JPY';
+          let pair = params.get('pair') || 'EUR/USD';
           pair = pair.toUpperCase().replace('/', '');
           return "FX:" + pair;
         }
         function getPairDisplayText() {
           const params = new URLSearchParams(window.location.search);
-          let pair = params.get('pair') || 'USD/JPY';
+          let pair = params.get('pair') || 'EUR/USD';
           return "5 " + pair.toUpperCase();
         }
         document.getElementById('pairName').innerText = getPairDisplayText();
@@ -126,21 +126,53 @@ const indexHtml = `
   <title>DARK SECRET Trading Bot Engine</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif; }
-    body { background-color: #0b0f12; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 12px 12px 80px 12px; }
-    .container { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px; }
-    .chart-container-box { width: 100%; height: 380px; background: #000000; border: 2px solid #5a422d; border-radius: 16px; overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; }
+    body { background-color: #0b0f12; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 12px 12px 90px 12px; }
+    .container { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* Pair Selector Box */
+    .pair-selector-box {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #12181b; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 12px;
+    }
+    .pair-selector-box label { font-size: 12px; font-weight: 700; color: #e5c158; }
+    .pair-select {
+      background: #000; color: #fff; border: 1px solid #5a422d;
+      padding: 6px 12px; border-radius: 8px; font-weight: 700; outline: none; cursor: pointer;
+    }
+
+    /* Chart Box */
+    .chart-container-box { width: 100%; height: 350px; background: #000000; border: 2px solid #5a422d; border-radius: 16px; overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; }
     .chart-container-box iframe { width: 100%; height: 100%; border: none; }
+
+    /* Control Buttons */
     .btn-group { display: flex; gap: 10px; width: 100%; justify-content: space-between; }
-    .btn { flex: 1; padding: 16px 8px; border-radius: 14px; font-size: 11px; font-weight: 800; letter-spacing: 1px; border: none; cursor: pointer; text-transform: uppercase; transition: transform 0.1s ease; display: flex; align-items: center; justify-content: center; text-align: center; }
+    .btn { flex: 1; padding: 14px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1px; border: none; cursor: pointer; text-transform: uppercase; transition: transform 0.1s ease; display: flex; align-items: center; justify-content: center; text-align: center; }
     .btn:active { transform: scale(0.96); }
     .btn-generate { background: #22c55e; color: #000000; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4); }
     .btn-reset { background: #334155; color: #f87171; border: 1px solid #475569; }
     .btn-result { background: #8b5cf6; color: #ffffff; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
-    .signal-output-box { background: rgba(18, 24, 27, 0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; min-height: 50px; }
-    .signal-text { font-size: 13px; font-weight: 700; color: #94a3b8; }
-    .signal-value { font-size: 14px; font-weight: 800; padding: 4px 12px; border-radius: 6px; }
+
+    /* Signal Output Box */
+    .signal-output-box { background: rgba(18, 24, 27, 0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .signal-header { display: flex; justify-content: space-between; align-items: center; }
+    .signal-text { font-size: 12px; font-weight: 700; color: #94a3b8; }
+    .signal-value { font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 6px; }
+    .signal-time { font-size: 12px; color: #e2e8f0; font-weight: 700; }
     .signal-call { background: #16a34a; color: #fff; }
     .signal-put { background: #dc2626; color: #fff; }
+
+    /* History & Saved Signals Box */
+    .history-box { background: #12181b; border: 1px solid #1e293b; border-radius: 12px; padding: 12px; max-height: 220px; overflow-y: auto; }
+    .history-title { font-size: 12px; font-weight: 800; color: #e5c158; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; background: #000000; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #1f293d; font-size: 11px; }
+    .history-info { display: flex; gap: 8px; align-items: center; }
+    .res-btn-group { display: flex; gap: 4px; }
+    .res-btn { padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; border: none; cursor: pointer; }
+    .btn-win { background: #22c55e; color: #000; }
+    .btn-loss { background: #ef4444; color: #fff; }
+    .btn-mtg { background: #f59e0b; color: #000; }
+
+    /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 480px; background: rgba(30, 35, 45, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 25px; display: flex; justify-content: space-around; padding: 6px; z-index: 1000; }
     .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; color: #64748b; text-decoration: none; font-size: 11px; font-weight: 600; border-radius: 20px; }
     .nav-item svg { width: 20px; height: 20px; fill: currentColor; margin-bottom: 2px; }
@@ -149,19 +181,49 @@ const indexHtml = `
 </head>
 <body>
   <div class="container">
+    
+    <!-- Pair Selector -->
+    <div class="pair-selector-box">
+      <label for="pairSelect">SELECT PAIR:</label>
+      <select id="pairSelect" class="pair-select" onchange="changePair()">
+        <option value="EUR/USD">EUR/USD</option>
+        <option value="GBP/USD">GBP/USD</option>
+        <option value="USD/JPY">USD/JPY</option>
+        <option value="AUD/USD">AUD/USD</option>
+        <option value="USD/CAD">USD/CAD</option>
+      </select>
+    </div>
+
+    <!-- Live Chart Box -->
     <div class="chart-container-box">
-      <iframe src="/chart?pair=EUR/USD"></iframe>
+      <iframe id="chartFrame" src="/chart?pair=EUR/USD"></iframe>
     </div>
+
+    <!-- Active Signal Output Box -->
     <div class="signal-output-box">
-      <span class="signal-text" id="statusText">STATUS: READY FOR SIGNAL</span>
-      <span class="signal-value" id="signalValue" style="display:none;">---</span>
+      <div class="signal-header">
+        <span class="signal-text" id="statusText">STATUS: READY FOR SIGNAL</span>
+        <span class="signal-value" id="signalValue" style="display:none;">---</span>
+      </div>
+      <div id="timeDetail" class="signal-time" style="display:none;"></div>
     </div>
+
+    <!-- Control Buttons -->
     <div class="btn-group">
       <button class="btn btn-generate" onclick="generateSignal()">GENERATE<br>SIGNAL</button>
       <button class="btn btn-reset" onclick="resetEngine()">RESET</button>
-      <button class="btn btn-result" onclick="checkPartialResult()">PARTIAL<br>RESULT</button>
+      <button class="btn btn-result" onclick="clearHistory()">CLEAR<br>SAVED</button>
     </div>
+
+    <!-- Saved Signals List -->
+    <div class="history-box">
+      <div class="history-title">SAVED SIGNALS HISTORY</div>
+      <div id="historyList"></div>
+    </div>
+
   </div>
+
+  <!-- Bottom Navigation -->
   <div class="bottom-nav">
     <a href="#" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 5v6h2V9H9zm4 0v6h2V9h-2z"/></svg> Engine
@@ -173,27 +235,113 @@ const indexHtml = `
       <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Profile
     </a>
   </div>
+
   <script>
+    let savedSignals = [];
+
+    function changePair() {
+      const selectedPair = document.getElementById('pairSelect').value;
+      document.getElementById('chartFrame').src = "/chart?pair=" + encodeURIComponent(selectedPair);
+    }
+
     function generateSignal() {
       const statusText = document.getElementById('statusText');
       const signalValue = document.getElementById('signalValue');
+      const timeDetail = document.getElementById('timeDetail');
+      const pair = document.getElementById('pairSelect').value;
+
       statusText.innerText = "ANALYZING MARKET...";
       signalValue.style.display = "none";
+      timeDetail.style.display = "none";
+
       setTimeout(() => {
         const isCall = Math.random() > 0.45;
+        const now = new Date();
+        
+        // Entry time string
+        const entryHours = String(now.getHours()).padStart(2, '0');
+        const entryMins = String(now.getMinutes()).padStart(2, '0');
+        const entryTimeStr = entryHours + ":" + entryMins;
+
+        // Next minute signal time
+        const nextMin = new Date(now.getTime() + 60000);
+        const nextHours = String(nextMin.getHours()).padStart(2, '0');
+        const nextMins = String(nextMin.getMinutes()).padStart(2, '0');
+        const signalTimeStr = nextHours + ":" + nextMins;
+
+        const direction = isCall ? "CALL ▲" : "PUT ▼";
+        
         statusText.innerText = "SIGNAL GENERATED:";
-        signalValue.innerText = isCall ? "CALL (BUY) ▲" : "PUT (SELL) ▼";
+        signalValue.innerText = direction;
         signalValue.className = "signal-value " + (isCall ? "signal-call" : "signal-put");
         signalValue.style.display = "inline-block";
-      }, 1500);
+
+        timeDetail.innerHTML = "Entry Time: <b>" + entryTimeStr + "</b> ➔ Target Signal Time: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
+        timeDetail.style.display = "block";
+
+        // Save Signal to History
+        const newSignal = {
+          id: Date.now(),
+          pair: pair,
+          direction: direction,
+          isCall: isCall,
+          time: signalTimeStr,
+          status: 'PENDING'
+        };
+        savedSignals.unshift(newSignal);
+        renderHistory();
+
+      }, 1200);
     }
+
+    function renderHistory() {
+      const historyList = document.getElementById('historyList');
+      if (savedSignals.length === 0) {
+        historyList.innerHTML = "<div style='color:#64748b; font-size:11px;'>No signals generated yet.</div>";
+        return;
+      }
+
+      historyList.innerHTML = savedSignals.map(sig => `
+        <div class="history-item">
+          <div class="history-info">
+            <span style="color:#e5c158; font-weight:700;">\${sig.pair}</span>
+            <span class="\${sig.isCall ? 'signal-call' : 'signal-put'}" style="padding:2px 6px; border-radius:4px; font-weight:800;">\${sig.direction}</span>
+            <span style="color:#cbd5e1; font-weight:700;">[\${sig.time}]</span>
+          </div>
+          <div class="res-btn-group">
+            \${sig.status === 'PENDING' ? `
+              <button class="res-btn btn-win" onclick="updateStatus(\${sig.id}, 'WIN')">WIN</button>
+              <button class="res-btn btn-loss" onclick="updateStatus(\${sig.id}, 'LOSS')">LOSS</button>
+              <button class="res-btn btn-mtg" onclick="updateStatus(\${sig.id}, 'MTG')">MTG</button>
+            ` : `
+              <span style="font-weight:800; font-size:10px; color:\${sig.status === 'WIN' ? '#22c55e' : sig.status === 'LOSS' ? '#ef4444' : '#f59e0b'}">\${sig.status}</span>
+            `}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateStatus(id, newStatus) {
+      const target = savedSignals.find(s => s.id === id);
+      if (target) {
+        target.status = newStatus;
+        renderHistory();
+      }
+    }
+
     function resetEngine() {
       document.getElementById('statusText').innerText = "STATUS: RESET COMPLETE";
       document.getElementById('signalValue').style.display = "none";
+      document.getElementById('timeDetail').style.display = "none";
     }
-    function checkPartialResult() {
-      alert("Checking partial market result...");
+
+    function clearHistory() {
+      savedSignals = [];
+      renderHistory();
     }
+
+    // Initial Empty Render
+    renderHistory();
   </script>
 </body>
 </html>
