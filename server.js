@@ -129,7 +129,6 @@ const indexHtml = `
     body { background-color: #0b0f12; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 12px 12px 90px 12px; }
     .container { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
     
-    /* Pair Selector Box */
     .pair-selector-box {
       display: flex; align-items: center; justify-content: space-between;
       background: #12181b; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 12px;
@@ -140,11 +139,9 @@ const indexHtml = `
       padding: 6px 12px; border-radius: 8px; font-weight: 700; outline: none; cursor: pointer;
     }
 
-    /* Chart Box */
     .chart-container-box { width: 100%; height: 350px; background: #000000; border: 2px solid #5a422d; border-radius: 16px; overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; }
     .chart-container-box iframe { width: 100%; height: 100%; border: none; }
 
-    /* Control Buttons */
     .btn-group { display: flex; gap: 10px; width: 100%; justify-content: space-between; }
     .btn { flex: 1; padding: 14px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1px; border: none; cursor: pointer; text-transform: uppercase; transition: transform 0.1s ease; display: flex; align-items: center; justify-content: center; text-align: center; }
     .btn:active { transform: scale(0.96); }
@@ -152,7 +149,6 @@ const indexHtml = `
     .btn-reset { background: #334155; color: #f87171; border: 1px solid #475569; }
     .btn-result { background: #8b5cf6; color: #ffffff; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
 
-    /* Signal Output Box */
     .signal-output-box { background: rgba(18, 24, 27, 0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .signal-header { display: flex; justify-content: space-between; align-items: center; }
     .signal-text { font-size: 12px; font-weight: 700; color: #94a3b8; }
@@ -161,7 +157,6 @@ const indexHtml = `
     .signal-call { background: #16a34a; color: #fff; }
     .signal-put { background: #dc2626; color: #fff; }
 
-    /* History & Saved Signals Box */
     .history-box { background: #12181b; border: 1px solid #1e293b; border-radius: 12px; padding: 12px; max-height: 220px; overflow-y: auto; }
     .history-title { font-size: 12px; font-weight: 800; color: #e5c158; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
     .history-item { display: flex; justify-content: space-between; align-items: center; background: #000000; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #1f293d; font-size: 11px; }
@@ -172,7 +167,6 @@ const indexHtml = `
     .btn-loss { background: #ef4444; color: #fff; }
     .btn-mtg { background: #f59e0b; color: #000; }
 
-    /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 480px; background: rgba(30, 35, 45, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 25px; display: flex; justify-content: space-around; padding: 6px; z-index: 1000; }
     .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; color: #64748b; text-decoration: none; font-size: 11px; font-weight: 600; border-radius: 20px; }
     .nav-item svg { width: 20px; height: 20px; fill: currentColor; margin-bottom: 2px; }
@@ -181,8 +175,6 @@ const indexHtml = `
 </head>
 <body>
   <div class="container">
-    
-    <!-- Pair Selector -->
     <div class="pair-selector-box">
       <label for="pairSelect">SELECT PAIR:</label>
       <select id="pairSelect" class="pair-select" onchange="changePair()">
@@ -194,12 +186,10 @@ const indexHtml = `
       </select>
     </div>
 
-    <!-- Live Chart Box -->
     <div class="chart-container-box">
       <iframe id="chartFrame" src="/chart?pair=EUR/USD"></iframe>
     </div>
 
-    <!-- Active Signal Output Box -->
     <div class="signal-output-box">
       <div class="signal-header">
         <span class="signal-text" id="statusText">STATUS: READY FOR SIGNAL</span>
@@ -208,22 +198,18 @@ const indexHtml = `
       <div id="timeDetail" class="signal-time" style="display:none;"></div>
     </div>
 
-    <!-- Control Buttons -->
     <div class="btn-group">
       <button class="btn btn-generate" onclick="generateSignal()">GENERATE<br>SIGNAL</button>
       <button class="btn btn-reset" onclick="resetEngine()">RESET</button>
       <button class="btn btn-result" onclick="clearHistory()">CLEAR<br>SAVED</button>
     </div>
 
-    <!-- Saved Signals List -->
     <div class="history-box">
       <div class="history-title">SAVED SIGNALS HISTORY</div>
       <div id="historyList"></div>
     </div>
-
   </div>
 
-  <!-- Bottom Navigation -->
   <div class="bottom-nav">
     <a href="#" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 5v6h2V9H9zm4 0v6h2V9h-2z"/></svg> Engine
@@ -258,12 +244,10 @@ const indexHtml = `
         const isCall = Math.random() > 0.45;
         const now = new Date();
         
-        // Entry time string
         const entryHours = String(now.getHours()).padStart(2, '0');
         const entryMins = String(now.getMinutes()).padStart(2, '0');
         const entryTimeStr = entryHours + ":" + entryMins;
 
-        // Next minute signal time
         const nextMin = new Date(now.getTime() + 60000);
         const nextHours = String(nextMin.getHours()).padStart(2, '0');
         const nextMins = String(nextMin.getMinutes()).padStart(2, '0');
@@ -279,7 +263,6 @@ const indexHtml = `
         timeDetail.innerHTML = "Entry Time: <b>" + entryTimeStr + "</b> ➔ Target Signal Time: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
         timeDetail.style.display = "block";
 
-        // Save Signal to History
         const newSignal = {
           id: Date.now(),
           pair: pair,
@@ -301,24 +284,31 @@ const indexHtml = `
         return;
       }
 
-      historyList.innerHTML = savedSignals.map(sig => `
-        <div class="history-item">
-          <div class="history-info">
-            <span style="color:#e5c158; font-weight:700;">\${sig.pair}</span>
-            <span class="\${sig.isCall ? 'signal-call' : 'signal-put'}" style="padding:2px 6px; border-radius:4px; font-weight:800;">\${sig.direction}</span>
-            <span style="color:#cbd5e1; font-weight:700;">[\${sig.time}]</span>
-          </div>
-          <div class="res-btn-group">
-            \${sig.status === 'PENDING' ? `
-              <button class="res-btn btn-win" onclick="updateStatus(\${sig.id}, 'WIN')">WIN</button>
-              <button class="res-btn btn-loss" onclick="updateStatus(\${sig.id}, 'LOSS')">LOSS</button>
-              <button class="res-btn btn-mtg" onclick="updateStatus(\${sig.id}, 'MTG')">MTG</button>
-            ` : `
-              <span style="font-weight:800; font-size:10px; color:\${sig.status === 'WIN' ? '#22c55e' : sig.status === 'LOSS' ? '#ef4444' : '#f59e0b'}">\${sig.status}</span>
-            `}
-          </div>
-        </div>
-      `).join('');
+      let html = '';
+      for (let i = 0; i < savedSignals.length; i++) {
+        const sig = savedSignals[i];
+        const statusColor = sig.status === 'WIN' ? '#22c55e' : (sig.status === 'LOSS' ? '#ef4444' : '#f59e0b');
+        const dirClass = sig.isCall ? 'signal-call' : 'signal-put';
+        
+        html += '<div class="history-item">' +
+          '<div class="history-info">' +
+            '<span style="color:#e5c158; font-weight:700;">' + sig.pair + '</span>' +
+            '<span class="' + dirClass + '" style="padding:2px 6px; border-radius:4px; font-weight:800;">' + sig.direction + '</span>' +
+            '<span style="color:#cbd5e1; font-weight:700;">[' + sig.time + ']</span>' +
+          '</div>' +
+          '<div class="res-btn-group">';
+          
+        if (sig.status === 'PENDING') {
+          html += '<button class="res-btn btn-win" onclick="updateStatus(' + sig.id + ', \'WIN\')">WIN</button>' +
+                  '<button class="res-btn btn-loss" onclick="updateStatus(' + sig.id + ', \'LOSS\')">LOSS</button>' +
+                  '<button class="res-btn btn-mtg" onclick="updateStatus(' + sig.id + ', \'MTG\')">MTG</button>';
+        } else {
+          html += '<span style="font-weight:800; font-size:10px; color:' + statusColor + ';">' + sig.status + '</span>';
+        }
+        
+        html += '</div></div>';
+      }
+      historyList.innerHTML = html;
     }
 
     function updateStatus(id, newStatus) {
@@ -340,7 +330,6 @@ const indexHtml = `
       renderHistory();
     }
 
-    // Initial Empty Render
     renderHistory();
   </script>
 </body>
