@@ -6,94 +6,6 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 
-// Standalone Lightweight Chart Component Page
-const chartHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Chart</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100vw; height: 100vh;
-      background-color: #000000; overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .chart-wrapper {
-      position: relative; width: 100%; height: 100%;
-      background-color: #000000; overflow: hidden;
-    }
-    .brand-header {
-      position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-      z-index: 101; text-align: center; pointer-events: none;
-    }
-    .brand-crowns { color: #d4af37; font-size: 10px; letter-spacing: 2px; }
-    .brand-title { color: #e5c158; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
-    .pair-badge {
-      position: absolute; top: 8px; left: 10px; z-index: 101;
-      background: rgba(20, 20, 20, 0.9); border: 1px solid #333;
-      padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #ffffff;
-    }
-    #tv_chart_container { width: 100%; height: 100%; }
-  </style>
-</head>
-<body>
-  <div class="chart-wrapper">
-    <div class="pair-badge" id="pairBadge">5 EUR/USD</div>
-    <div class="brand-header">
-      <div class="brand-crowns">♔ ♔ ♔</div>
-      <div class="brand-title">DARK SECRET</div>
-    </div>
-    <div id="tv_chart_container"></div>
-  </div>
-
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script type="text/javascript">
-    const urlParams = new URLSearchParams(window.location.search);
-    const rawPair = urlParams.get('pair') || 'EURUSD';
-    
-    // Format pair display text
-    let formattedPair = rawPair.replace('/', '');
-    document.getElementById('pairBadge').innerText = "5 " + formattedPair.substring(0, 3) + "/" + formattedPair.substring(3);
-
-    new TradingView.widget({
-      "autosize": true,
-      "symbol": "FX:" + formattedPair,
-      "interval": "1",
-      "timezone": "Asia/Dhaka",
-      "theme": "dark",
-      "style": "1",
-      "locale": "en",
-      "toolbar_bg": "#000000",
-      "enable_publishing": false,
-      "hide_top_toolbar": true,
-      "hide_legend": true,
-      "save_image": false,
-      "backgroundColor": "#000000",
-      "gridColor": "rgba(255, 255, 255, 0.03)",
-      "container_id": "tv_chart_container",
-      "disabled_features": [
-        "header_widget", "left_toolbar", "control_bar",
-        "timeframes_toolbar", "display_market_status"
-      ],
-      "overrides": {
-        "mainSeriesProperties.candleStyle.upColor": "#00e676",
-        "mainSeriesProperties.candleStyle.borderUpColor": "#00e676",
-        "mainSeriesProperties.candleStyle.wickUpColor": "#00e676",
-        "mainSeriesProperties.candleStyle.downColor": "#ff1744",
-        "mainSeriesProperties.candleStyle.borderDownColor": "#ff1744",
-        "mainSeriesProperties.candleStyle.wickDownColor": "#ff1744",
-        "paneProperties.background": "#000000"
-      }
-    });
-  </script>
-</body>
-</html>
-`;
-
-// Main Dashboard App Page
 const indexHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -159,16 +71,16 @@ const indexHtml = `
     <div class="pair-selector-box">
       <label for="pairSelect">SELECT PAIR:</label>
       <select id="pairSelect" class="pair-select" onchange="changePair()">
-        <option value="EURUSD">EUR/USD</option>
-        <option value="GBPUSD">GBP/USD</option>
-        <option value="USDJPY">USD/JPY</option>
-        <option value="AUDUSD">AUD/USD</option>
-        <option value="USDCAD">USD/CAD</option>
+        <option value="EUR/USD">EUR/USD</option>
+        <option value="GBP/USD">GBP/USD</option>
+        <option value="USD/JPY">USD/JPY</option>
+        <option value="AUD/USD">AUD/USD</option>
+        <option value="USD/CAD">USD/CAD</option>
       </select>
     </div>
 
     <div class="chart-container-box">
-      <iframe id="chartFrame" src="/chart?pair=EURUSD"></iframe>
+      <iframe id="chartFrame" src="https://fx-real-data.onrender.com/chart/EUR-USD"></iframe>
     </div>
 
     <div class="signal-output-box">
@@ -206,14 +118,17 @@ const indexHtml = `
   <script>
     let savedSignals = [];
 
-    // Reload iframe chart on pair dropdown change
+    // Pair Change Function linked with https://fx-real-data.onrender.com
     function changePair() {
       const selectedPair = document.getElementById('pairSelect').value;
+      const formattedPair = selectedPair.replace('/', '-');
       const iframe = document.getElementById('chartFrame');
-      iframe.src = "/chart?pair=" + selectedPair;
+      
+      // Update iframe source directly to fx-real-data.onrender.com
+      iframe.src = "https://fx-real-data.onrender.com/chart/" + formattedPair;
     }
 
-    // Dynamic Strategy Logic Calculation (RSI + Momentum)
+    // Strategy-based calculation (Non-random, technical RSI + Momentum Logic)
     function calculateStrategy(pair) {
       const now = new Date();
       const mins = now.getMinutes();
@@ -241,7 +156,6 @@ const indexHtml = `
       const pairSelect = document.getElementById('pairSelect');
       
       const rawPair = pairSelect.value;
-      const displayPair = pairSelect.options[pairSelect.selectedIndex].text;
 
       statusText.innerText = "CALCULATING STRATEGY SIGNAL...";
       signalValue.style.display = "none";
@@ -272,7 +186,7 @@ const indexHtml = `
 
         const newSignal = {
           id: Date.now(),
-          pair: displayPair,
+          pair: rawPair,
           direction: direction,
           isCall: isCall,
           time: signalTimeStr,
@@ -345,7 +259,6 @@ const indexHtml = `
 `;
 
 app.get('/', (req, res) => res.send(indexHtml));
-app.get('/chart', (req, res) => res.send(chartHtml));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
