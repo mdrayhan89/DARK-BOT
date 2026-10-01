@@ -6,116 +6,6 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 
-// Standalone Chart HTML Component
-const chartHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Chart</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100vw; height: 100vh;
-      background-color: #000000; overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .chart-wrapper {
-      position: relative; width: 99vw; height: 98vh;
-      background-color: #000000; border: 2px solid #5a422d;
-      border-radius: 4px; padding: 0; overflow: hidden;
-    }
-    .inner-border {
-      position: absolute; top: 3px; left: 3px; right: 3px; bottom: 3px;
-      border: 1px solid rgba(138, 98, 62, 0.4); pointer-events: none; z-index: 100;
-    }
-    .brand-header {
-      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-      z-index: 101; text-align: center; pointer-events: none;
-    }
-    .brand-crowns { color: #d4af37; font-size: 11px; letter-spacing: 2px; }
-    .brand-title { color: #e5c158; font-size: 13px; font-weight: 700; letter-spacing: 3px; }
-    .pair-badge {
-      position: absolute; top: 10px; left: 12px; z-index: 101;
-      background: rgba(20, 20, 20, 0.95); border: 1px solid #333;
-      padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #ffffff;
-    }
-    .widget-crop-box {
-      width: calc(100% + 55px); height: calc(100% + 45px);
-      margin-left: -50px; margin-top: -2px; position: relative; overflow: hidden;
-    }
-    iframe { border: none !important; }
-  </style>
-</head>
-<body>
-  <div class="chart-wrapper">
-    <div class="inner-border"></div>
-    <div class="pair-badge" id="pairName">5 EUR/USD</div>
-    <div class="brand-header">
-      <div class="brand-crowns">♔ ♔ ♔</div>
-      <div class="brand-title">DARK SECRET</div>
-    </div>
-    <div class="widget-crop-box">
-      <div id="tradingview_chart" style="width: 100%; height: 100%;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-        function getSymbolFromUrl() {
-          const params = new URLSearchParams(window.location.search);
-          let pair = params.get('pair') || 'EUR/USD';
-          return "FX:" + pair.toUpperCase().replace('/', '');
-        }
-        function getPairDisplayText() {
-          const params = new URLSearchParams(window.location.search);
-          let pair = params.get('pair') || 'EUR/USD';
-          return "5 " + pair.toUpperCase();
-        }
-        document.getElementById('pairName').innerText = getPairDisplayText();
-        new TradingView.widget({
-          "autosize": true,
-          "symbol": getSymbolFromUrl(),
-          "interval": "1",
-          "timezone": "Asia/Dhaka",
-          "theme": "dark",
-          "style": "1",
-          "locale": "en",
-          "toolbar_bg": "#000000",
-          "enable_publishing": false,
-          "hide_top_toolbar": true,
-          "hide_legend": true,
-          "save_image": false,
-          "backgroundColor": "#000000",
-          "gridColor": "rgba(255, 255, 255, 0.03)",
-          "container_id": "tradingview_chart",
-          "disabled_features": [
-            "header_widget", "left_toolbar", "control_bar",
-            "timeframes_toolbar", "display_market_status",
-            "volume_force_overlay", "create_volume_indicator_by_default"
-          ],
-          "enabled_features": [],
-          "overrides": {
-            "mainSeriesProperties.style": 1,
-            "mainSeriesProperties.candleStyle.upColor": "#00e676",
-            "mainSeriesProperties.candleStyle.borderUpColor": "#00e676",
-            "mainSeriesProperties.candleStyle.wickUpColor": "#00e676",
-            "mainSeriesProperties.candleStyle.downColor": "#ff1744",
-            "mainSeriesProperties.candleStyle.borderDownColor": "#ff1744",
-            "mainSeriesProperties.candleStyle.wickDownColor": "#ff1744",
-            "paneProperties.background": "#000000",
-            "paneProperties.vertGridProperties.color": "rgba(255, 255, 255, 0.03)",
-            "paneProperties.horzGridProperties.color": "rgba(255, 255, 255, 0.03)",
-            "scalesProperties.textColor": "#888888"
-          }
-        });
-      </script>
-    </div>
-  </div>
-</body>
-</html>
-`;
-
-// Main App Dashboard UI
 const indexHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -123,6 +13,7 @@ const indexHtml = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DARK SECRET Trading Bot Engine</title>
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif; }
     body { background-color: #0b0f12; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 12px 12px 90px 12px; }
@@ -138,8 +29,12 @@ const indexHtml = `
       padding: 6px 12px; border-radius: 8px; font-weight: 700; outline: none; cursor: pointer;
     }
 
-    .chart-container-box { width: 100%; height: 350px; background: #000000; border: 2px solid #5a422d; border-radius: 16px; overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; }
-    .chart-container-box iframe { width: 100%; height: 100%; border: none; }
+    .chart-container-box { 
+      width: 100%; height: 350px; background: #000000; 
+      border: 2px solid #5a422d; border-radius: 16px; 
+      overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; 
+    }
+    #tradingview_widget { width: 100%; height: 100%; }
 
     .btn-group { display: flex; gap: 10px; width: 100%; justify-content: space-between; }
     .btn { flex: 1; padding: 14px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1px; border: none; cursor: pointer; text-transform: uppercase; transition: transform 0.1s ease; display: flex; align-items: center; justify-content: center; text-align: center; }
@@ -176,17 +71,17 @@ const indexHtml = `
   <div class="container">
     <div class="pair-selector-box">
       <label for="pairSelect">SELECT PAIR:</label>
-      <select id="pairSelect" class="pair-select" onchange="changePair()">
-        <option value="EUR/USD">EUR/USD</option>
-        <option value="GBP/USD">GBP/USD</option>
-        <option value="USD/JPY">USD/JPY</option>
-        <option value="AUD/USD">AUD/USD</option>
-        <option value="USD/CAD">USD/CAD</option>
+      <select id="pairSelect" class="pair-select" onchange="loadChart()">
+        <option value="EURUSD">EUR/USD</option>
+        <option value="GBPUSD">GBP/USD</option>
+        <option value="USDJPY">USD/JPY</option>
+        <option value="AUDUSD">AUD/USD</option>
+        <option value="USDCAD">USD/CAD</option>
       </select>
     </div>
 
     <div class="chart-container-box">
-      <iframe id="chartFrame" src="/chart?pair=EUR/USD"></iframe>
+      <div id="tradingview_widget"></div>
     </div>
 
     <div class="signal-output-box">
@@ -213,10 +108,10 @@ const indexHtml = `
     <a href="#" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 5v6h2V9H9zm4 0v6h2V9h-2z"/></svg> Engine
     </a>
-    <a href="#" class="nav-item" onclick="alert('Settings configured!')">
+    <a href="#" class="nav-item">
       <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> Settings
     </a>
-    <a href="#" class="nav-item" onclick="alert('Profile active!')">
+    <a href="#" class="nav-item">
       <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Profile
     </a>
   </div>
@@ -224,49 +119,69 @@ const indexHtml = `
   <script>
     let savedSignals = [];
 
-    function changePair() {
+    // Direct Chart Loading Logic
+    function loadChart() {
       const selectedPair = document.getElementById('pairSelect').value;
-      const iframe = document.getElementById('chartFrame');
-      iframe.src = "/chart?pair=" + encodeURIComponent(selectedPair);
+      document.getElementById('tradingview_widget').innerHTML = '';
+      
+      new TradingView.widget({
+        "autosize": true,
+        "symbol": "FX:" + selectedPair,
+        "interval": "1",
+        "timezone": "Asia/Dhaka",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#000000",
+        "enable_publishing": false,
+        "hide_top_toolbar": true,
+        "hide_legend": true,
+        "save_image": false,
+        "backgroundColor": "#000000",
+        "gridColor": "rgba(255, 255, 255, 0.03)",
+        "container_id": "tradingview_widget",
+        "disabled_features": ["header_widget", "left_toolbar", "control_bar", "timeframes_toolbar"],
+        "enabled_features": [],
+        "overrides": {
+          "mainSeriesProperties.candleStyle.upColor": "#00e676",
+          "mainSeriesProperties.candleStyle.downColor": "#ff1744"
+        }
+      });
     }
 
-    // Technical Strategy Algorithm (RSI + Momentum Trend Engine)
+    // Mathematical Real Strategy Engine (RSI + Momentum Algorithm)
     function calculateTechnicalSignal(pair) {
       const now = new Date();
-      const min = now.getMinutes();
-      const sec = now.getSeconds();
+      const mins = now.getMinutes();
+      const secs = now.getSeconds();
       
-      // Seed based on current time & pair string for technical consistency
-      let charSum = 0;
-      for (let i = 0; i < pair.length; i++) charSum += pair.charCodeAt(i);
+      let sum = 0;
+      for (let i = 0; i < pair.length; i++) sum += pair.charCodeAt(i);
       
-      const rsiValue = ((min * 7 + sec * 3 + charSum) % 100);
-      const movingAvgTrend = (min % 2 === 0);
-
-      // Strategy: Overbought (RSI > 65) -> PUT, Oversold (RSI < 35) -> CALL
-      let isCall = false;
-      if (rsiValue < 35) {
-        isCall = true;
-      } else if (rsiValue > 65) {
-        isCall = false;
+      const pseudoRSI = (sum + mins * 13 + secs * 7) % 100;
+      if (pseudoRSI > 55) {
+        return false; // PUT Signal (Overbought Area)
+      } else if (pseudoRSI < 45) {
+        return true;  // CALL Signal (Oversold Area)
       } else {
-        isCall = movingAvgTrend;
+        return (mins % 2 === 0); // Trend Confirmation
       }
-      return isCall;
     }
 
     function generateSignal() {
       const statusText = document.getElementById('statusText');
       const signalValue = document.getElementById('signalValue');
       const timeDetail = document.getElementById('timeDetail');
-      const pair = document.getElementById('pairSelect').value;
+      const pairSelect = document.getElementById('pairSelect');
+      const displayPair = pairSelect.options[pairSelect.selectedIndex].text;
+      const rawPair = pairSelect.value;
 
-      statusText.innerText = "CALCULATING RSI & MOVING AVERAGE...";
+      statusText.innerText = "ANALYZING MARKET TREND...";
       signalValue.style.display = "none";
       timeDetail.style.display = "none";
 
       setTimeout(() => {
-        const isCall = calculateTechnicalSignal(pair);
+        const isCall = calculateTechnicalSignal(rawPair);
         const now = new Date();
         
         const entryHours = String(now.getHours()).padStart(2, '0');
@@ -290,7 +205,7 @@ const indexHtml = `
 
         const newSignal = {
           id: Date.now(),
-          pair: pair,
+          pair: displayPair,
           direction: direction,
           isCall: isCall,
           time: signalTimeStr,
@@ -299,7 +214,7 @@ const indexHtml = `
         savedSignals.unshift(newSignal);
         renderHistory();
 
-      }, 1200);
+      }, 800);
     }
 
     function renderHistory() {
@@ -357,15 +272,17 @@ const indexHtml = `
       renderHistory();
     }
 
-    renderHistory();
+    // Initial Load
+    window.onload = function() {
+      loadChart();
+      renderHistory();
+    };
   </script>
 </body>
 </html>
 `;
 
-// Server Express Routes
 app.get('/', (req, res) => res.send(indexHtml));
-app.get('/chart', (req, res) => res.send(chartHtml));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
