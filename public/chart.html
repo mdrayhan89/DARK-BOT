@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALPHA VANTAGE Forex Canvas</title>
+  <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw; height: 100vh;
+      background-color: #000000;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .chart-frame {
+      position: relative; width: 98vw; height: 95vh;
+      background: #000000; border: 2px solid #b3875a; border-radius: 6px;
+      box-shadow: 0 0 25px rgba(179, 135, 90, 0.25); padding: 8px;
+    }
+    .inner-border {
+      position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px;
+      border: 1px solid rgba(179, 135, 90, 0.3); pointer-events: none; z-index: 5;
+    }
+    .header-logo {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 10; text-align: center; pointer-events: none;
+    }
+    .crown-icon { color: #d4af37; font-size: 14px; letter-spacing: 3px; }
+    .brand-title { color: #e5c158; font-size: 14px; font-weight: 700; letter-spacing: 3px; }
+    .pair-badge {
+      position: absolute; top: 12px; left: 15px; z-index: 10;
+      background: rgba(20, 20, 20, 0.9); border: 1px solid #333;
+      padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #fff;
+    }
+    .signal-box {
+      position: absolute; top: 12px; right: 15px; z-index: 10;
+      padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #fff;
+    }
+    .signal-put { background: #e53935; }
+    .signal-call { background: #43a047; }
+    #chartArea { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="chart-frame">
+    <div class="inner-border"></div>
+    <div class="pair-badge" id="pairDisplay">6 USDJPY</div>
+    <div class="header-logo">
+      <div class="crown-icon">♔♔♔</div>
+      <div class="brand-title">ALPHA VANTAGE</div>
+    </div>
+    
+    <div class="signal-box signal-call" id="signalBox">▲ CALL</div>
+    <div id="chartArea"></div>
+  </div>
+
+<script>
+  function getSelectedPair() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let pair = urlParams.get('pair') || 'USD/JPY';
+    return pair.toUpperCase();
+  }
+
+  const currentPair = getSelectedPair();
+  document.getElementById('pairDisplay').innerText = `6 ${currentPair.replace('/', '')}`;
+
+  const container = document.getElementById('chartArea');
+  const chart = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: { backgroundColor: '#000000', textColor: '#888888' },
+    grid: { vertLines: { color: 'rgba(255, 255, 255, 0.03)' }, horzLines: { color: 'rgba(255, 255, 255, 0.03)' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#222222', visible: true },
+    timeScale: { borderColor: '#222222', timeVisible: true, secondsVisible: false }
+  });
+
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#00c853', downColor: '#d50000',
+    borderUpColor: '#00c853', borderDownColor: '#d50000',
+    wickUpColor: '#00c853', wickDownColor: '#d50000'
+  });
+
+  async function loadDataFromApi() {
+    try {
+      const res = await fetch(`/api/candles?pair=${encodeURIComponent(currentPair)}`);
+      const result = await res.json();
+      
+      if (result.data && result.data.length > 0) {
+        // Reverse array to build historical series chronologically
+        const formatted = result.data.slice().reverse().map(item => ({
+          time: item.timestamp,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close
+        }));
+
+        candleSeries.setData(formatted);
+
+        // Update Signal Box based on latest candle
+        const latest = result.data[0];
+        const signalBox = document.getElementById('signalBox');
+        if (latest.signal === 'CALL') {
+          signalBox.className = 'signal-box signal-call';
+          signalBox.innerText = '▲ CALL';
+        } else {
+          signalBox.className = 'signal-box signal-put';
+          signalBox.innerText = '▼ PUT';
+        }
+      }
+    } catch (e) {}
+  }
+
+  loadDataFromApi();
+  setInterval(loadDataFromApi, 1000);
+
+  window.addEventListener('resize', () => {
+    chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+  });
+</script>
+</body>
+</html>
