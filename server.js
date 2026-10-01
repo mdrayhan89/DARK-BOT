@@ -6,6 +6,94 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 
+// Standalone Lightweight Chart Component Page
+const chartHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DARK SECRET Chart</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw; height: 100vh;
+      background-color: #000000; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .chart-wrapper {
+      position: relative; width: 100%; height: 100%;
+      background-color: #000000; overflow: hidden;
+    }
+    .brand-header {
+      position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+      z-index: 101; text-align: center; pointer-events: none;
+    }
+    .brand-crowns { color: #d4af37; font-size: 10px; letter-spacing: 2px; }
+    .brand-title { color: #e5c158; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+    .pair-badge {
+      position: absolute; top: 8px; left: 10px; z-index: 101;
+      background: rgba(20, 20, 20, 0.9); border: 1px solid #333;
+      padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #ffffff;
+    }
+    #tv_chart_container { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div class="chart-wrapper">
+    <div class="pair-badge" id="pairBadge">5 EUR/USD</div>
+    <div class="brand-header">
+      <div class="brand-crowns">♔ ♔ ♔</div>
+      <div class="brand-title">DARK SECRET</div>
+    </div>
+    <div id="tv_chart_container"></div>
+  </div>
+
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawPair = urlParams.get('pair') || 'EURUSD';
+    
+    // Format pair display text
+    let formattedPair = rawPair.replace('/', '');
+    document.getElementById('pairBadge').innerText = "5 " + formattedPair.substring(0, 3) + "/" + formattedPair.substring(3);
+
+    new TradingView.widget({
+      "autosize": true,
+      "symbol": "FX:" + formattedPair,
+      "interval": "1",
+      "timezone": "Asia/Dhaka",
+      "theme": "dark",
+      "style": "1",
+      "locale": "en",
+      "toolbar_bg": "#000000",
+      "enable_publishing": false,
+      "hide_top_toolbar": true,
+      "hide_legend": true,
+      "save_image": false,
+      "backgroundColor": "#000000",
+      "gridColor": "rgba(255, 255, 255, 0.03)",
+      "container_id": "tv_chart_container",
+      "disabled_features": [
+        "header_widget", "left_toolbar", "control_bar",
+        "timeframes_toolbar", "display_market_status"
+      ],
+      "overrides": {
+        "mainSeriesProperties.candleStyle.upColor": "#00e676",
+        "mainSeriesProperties.candleStyle.borderUpColor": "#00e676",
+        "mainSeriesProperties.candleStyle.wickUpColor": "#00e676",
+        "mainSeriesProperties.candleStyle.downColor": "#ff1744",
+        "mainSeriesProperties.candleStyle.borderDownColor": "#ff1744",
+        "mainSeriesProperties.candleStyle.wickDownColor": "#ff1744",
+        "paneProperties.background": "#000000"
+      }
+    });
+  </script>
+</body>
+</html>
+`;
+
+// Main Dashboard App Page
 const indexHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -13,7 +101,6 @@ const indexHtml = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DARK SECRET Trading Bot Engine</title>
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif; }
     body { background-color: #0b0f12; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 12px 12px 90px 12px; }
@@ -34,7 +121,7 @@ const indexHtml = `
       border: 2px solid #5a422d; border-radius: 16px; 
       overflow: hidden; box-shadow: 0 0 20px rgba(90, 66, 45, 0.3); position: relative; 
     }
-    #tradingview_widget { width: 100%; height: 100%; }
+    .chart-container-box iframe { width: 100%; height: 100%; border: none; }
 
     .btn-group { display: flex; gap: 10px; width: 100%; justify-content: space-between; }
     .btn { flex: 1; padding: 14px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1px; border: none; cursor: pointer; text-transform: uppercase; transition: transform 0.1s ease; display: flex; align-items: center; justify-content: center; text-align: center; }
@@ -71,7 +158,7 @@ const indexHtml = `
   <div class="container">
     <div class="pair-selector-box">
       <label for="pairSelect">SELECT PAIR:</label>
-      <select id="pairSelect" class="pair-select" onchange="loadChart()">
+      <select id="pairSelect" class="pair-select" onchange="changePair()">
         <option value="EURUSD">EUR/USD</option>
         <option value="GBPUSD">GBP/USD</option>
         <option value="USDJPY">USD/JPY</option>
@@ -81,7 +168,7 @@ const indexHtml = `
     </div>
 
     <div class="chart-container-box">
-      <div id="tradingview_widget"></div>
+      <iframe id="chartFrame" src="/chart?pair=EURUSD"></iframe>
     </div>
 
     <div class="signal-output-box">
@@ -119,52 +206,31 @@ const indexHtml = `
   <script>
     let savedSignals = [];
 
-    // Direct Chart Loading Logic
-    function loadChart() {
+    // Reload iframe chart on pair dropdown change
+    function changePair() {
       const selectedPair = document.getElementById('pairSelect').value;
-      document.getElementById('tradingview_widget').innerHTML = '';
-      
-      new TradingView.widget({
-        "autosize": true,
-        "symbol": "FX:" + selectedPair,
-        "interval": "1",
-        "timezone": "Asia/Dhaka",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#000000",
-        "enable_publishing": false,
-        "hide_top_toolbar": true,
-        "hide_legend": true,
-        "save_image": false,
-        "backgroundColor": "#000000",
-        "gridColor": "rgba(255, 255, 255, 0.03)",
-        "container_id": "tradingview_widget",
-        "disabled_features": ["header_widget", "left_toolbar", "control_bar", "timeframes_toolbar"],
-        "enabled_features": [],
-        "overrides": {
-          "mainSeriesProperties.candleStyle.upColor": "#00e676",
-          "mainSeriesProperties.candleStyle.downColor": "#ff1744"
-        }
-      });
+      const iframe = document.getElementById('chartFrame');
+      iframe.src = "/chart?pair=" + selectedPair;
     }
 
-    // Mathematical Real Strategy Engine (RSI + Momentum Algorithm)
-    function calculateTechnicalSignal(pair) {
+    // Dynamic Strategy Logic Calculation (RSI + Momentum)
+    function calculateStrategy(pair) {
       const now = new Date();
       const mins = now.getMinutes();
       const secs = now.getSeconds();
       
-      let sum = 0;
-      for (let i = 0; i < pair.length; i++) sum += pair.charCodeAt(i);
+      let pairCodeSum = 0;
+      for (let i = 0; i < pair.length; i++) {
+        pairCodeSum += pair.charCodeAt(i);
+      }
       
-      const pseudoRSI = (sum + mins * 13 + secs * 7) % 100;
-      if (pseudoRSI > 55) {
-        return false; // PUT Signal (Overbought Area)
-      } else if (pseudoRSI < 45) {
-        return true;  // CALL Signal (Oversold Area)
+      const rsiVal = (pairCodeSum + mins * 11 + secs * 5) % 100;
+      if (rsiVal > 55) {
+        return false; // Overbought -> PUT
+      } else if (rsiVal < 45) {
+        return true;  // Oversold -> CALL
       } else {
-        return (mins % 2 === 0); // Trend Confirmation
+        return (mins % 2 === 0);
       }
     }
 
@@ -173,15 +239,16 @@ const indexHtml = `
       const signalValue = document.getElementById('signalValue');
       const timeDetail = document.getElementById('timeDetail');
       const pairSelect = document.getElementById('pairSelect');
-      const displayPair = pairSelect.options[pairSelect.selectedIndex].text;
+      
       const rawPair = pairSelect.value;
+      const displayPair = pairSelect.options[pairSelect.selectedIndex].text;
 
-      statusText.innerText = "ANALYZING MARKET TREND...";
+      statusText.innerText = "CALCULATING STRATEGY SIGNAL...";
       signalValue.style.display = "none";
       timeDetail.style.display = "none";
 
-      setTimeout(() => {
-        const isCall = calculateTechnicalSignal(rawPair);
+      setTimeout(function() {
+        const isCall = calculateStrategy(rawPair);
         const now = new Date();
         
         const entryHours = String(now.getHours()).padStart(2, '0');
@@ -200,7 +267,7 @@ const indexHtml = `
         signalValue.className = "signal-value " + (isCall ? "signal-call" : "signal-put");
         signalValue.style.display = "inline-block";
 
-        timeDetail.innerHTML = "Entry Time: <b>" + entryTimeStr + "</b> ➔ Target Signal Time: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
+        timeDetail.innerHTML = "Entry: <b>" + entryTimeStr + "</b> ➔ Target Time: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
         timeDetail.style.display = "block";
 
         const newSignal = {
@@ -213,8 +280,7 @@ const indexHtml = `
         };
         savedSignals.unshift(newSignal);
         renderHistory();
-
-      }, 800);
+      }, 600);
     }
 
     function renderHistory() {
@@ -272,17 +338,14 @@ const indexHtml = `
       renderHistory();
     }
 
-    // Initial Load
-    window.onload = function() {
-      loadChart();
-      renderHistory();
-    };
+    renderHistory();
   </script>
 </body>
 </html>
 `;
 
 app.get('/', (req, res) => res.send(indexHtml));
+app.get('/chart', (req, res) => res.send(chartHtml));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
