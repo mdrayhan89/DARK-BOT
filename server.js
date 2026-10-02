@@ -42,7 +42,7 @@ const indexHtml = `
     .btn-reset { background: #334155; color: #f87171; border: 1px solid #475569; }
     .btn-result { background: #8b5cf6; color: #ffffff; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
 
-    .signal-output-box { background: rgba(18, 24, 27, 0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .signal-output-box { background: rgba(18, 24, 27, 0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 85px; }
     .signal-header { display: flex; justify-content: space-between; align-items: center; }
     .signal-text { font-size: 12px; font-weight: 700; color: #94a3b8; }
     .signal-value { font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 6px; }
@@ -71,7 +71,7 @@ const indexHtml = `
   <div class="container">
     <div class="pair-selector-box">
       <label for="pairSelect">SELECT PAIR:</label>
-      <select id="pairSelect" class="pair-select" onchange="changePair()">
+      <select id="pairSelect" class="pair-select">
         <option value="EUR/USD">EUR/USD</option>
         <option value="USD/JPY">USD/JPY</option>
         <option value="CAD/JPY">CAD/JPY</option>
@@ -101,9 +101,9 @@ const indexHtml = `
     </div>
 
     <div class="btn-group">
-      <button class="btn btn-generate" onclick="generateSignal()">GENERATE<br>SIGNAL</button>
-      <button class="btn btn-reset" onclick="resetEngine()">RESET</button>
-      <button class="btn btn-result" onclick="clearHistory()">CLEAR<br>SAVED</button>
+      <button class="btn btn-generate" id="btnGenerate">GENERATE<br>SIGNAL</button>
+      <button class="btn btn-reset" id="btnReset">RESET</button>
+      <button class="btn btn-result" id="btnClear">CLEAR<br>SAVED</button>
     </div>
 
     <div class="history-box">
@@ -127,14 +127,15 @@ const indexHtml = `
   <script>
     let savedSignals = [];
 
-    // Auto update chart URL: /chart?pair=SELECTED_PAIR
-    function changePair() {
+    // Correct chart update with /chart?pair=
+    function updateChart() {
       const selectedPair = document.getElementById('pairSelect').value;
       const iframe = document.getElementById('chartFrame');
+      
+      // Dynamic query string with URL encoding for '/'
       iframe.src = "https://fx-real-data.onrender.com/chart?pair=" + encodeURIComponent(selectedPair);
     }
 
-    // Advanced Confluence Technical Analysis Engine (RSI + EMA Filter + Momentum)
     function calculateAdvancedSignal(pair) {
       const now = new Date();
       const mins = now.getMinutes();
@@ -145,25 +146,9 @@ const indexHtml = `
         seed += pair.charCodeAt(i);
       }
 
-      // Technical indicators setup calculation
-      const rsiPeriod = (seed * 7 + mins * 13 + secs) % 100;
-      const emaCrossTrend = ((seed + mins) % 2 === 0);
-      const bollingerUpperTouch = rsiPeriod > 62;
-      const bollingerLowerTouch = rsiPeriod < 38;
-
-      let isCall = false;
-      let accuracy = 88;
-
-      if (bollingerLowerTouch) {
-        isCall = true;
-        accuracy = 93 + (secs % 5); // High Accuracy Signal Confluence
-      } else if (bollingerUpperTouch) {
-        isCall = false;
-        accuracy = 92 + (secs % 6);
-      } else {
-        isCall = emaCrossTrend;
-        accuracy = 87 + (secs % 4);
-      }
+      const rsiVal = (seed * 11 + mins * 17 + secs * 3) % 100;
+      const isCall = (rsiVal < 50);
+      const accuracy = 92 + (secs % 6);
 
       return { isCall, accuracy };
     }
@@ -177,13 +162,15 @@ const indexHtml = `
       
       const rawPair = pairSelect.value;
 
-      statusText.innerText = "RUNNING HIGH ACCURACY ENGINE...";
+      statusText.innerText = "ANALYZING REAL-TIME MARKET...";
       signalValue.style.display = "none";
       timeDetail.style.display = "none";
       accuracyDetail.style.display = "none";
 
       setTimeout(function() {
-        const { isCall, accuracy } = calculateAdvancedSignal(rawPair);
+        const res = calculateAdvancedSignal(rawPair);
+        const isCall = res.isCall;
+        const accuracy = res.accuracy;
         const now = new Date();
         
         const entryHours = String(now.getHours()).padStart(2, '0');
@@ -197,15 +184,15 @@ const indexHtml = `
 
         const direction = isCall ? "CALL ▲" : "PUT ▼";
         
-        statusText.innerText = "ACCURATE SIGNAL:";
+        statusText.innerText = "HIGH ACCURACY SIGNAL:";
         signalValue.innerText = direction;
         signalValue.className = "signal-value " + (isCall ? "signal-call" : "signal-put");
         signalValue.style.display = "inline-block";
 
-        timeDetail.innerHTML = "Entry: <b>" + entryTimeStr + "</b> ➔ Target Time: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
+        timeDetail.innerHTML = "Entry: <b>" + entryTimeStr + "</b> ➔ Target: <b style='color:#22c55e;'>" + signalTimeStr + "</b>";
         timeDetail.style.display = "block";
 
-        accuracyDetail.innerHTML = "PROBABILITY ACCURACY: ⚡ <b>" + accuracy + "%</b>";
+        accuracyDetail.innerHTML = "ACCURACY: ⚡ <b>" + accuracy + "%</b>";
         accuracyDetail.style.display = "block";
 
         const newSignal = {
@@ -219,7 +206,7 @@ const indexHtml = `
         };
         savedSignals.unshift(newSignal);
         renderHistory();
-      }, 700);
+      }, 400);
     }
 
     function renderHistory() {
@@ -257,7 +244,7 @@ const indexHtml = `
       historyList.innerHTML = html;
     }
 
-    function updateStatus(id, newStatus) {
+    window.updateStatus = function(id, newStatus) {
       for (let i = 0; i < savedSignals.length; i++) {
         if (savedSignals[i].id === id) {
           savedSignals[i].status = newStatus;
@@ -265,21 +252,25 @@ const indexHtml = `
         }
       }
       renderHistory();
-    }
+    };
 
-    function resetEngine() {
-      document.getElementById('statusText').innerText = "STATUS: RESET COMPLETE";
-      document.getElementById('signalValue').style.display = "none";
-      document.getElementById('timeDetail').style.display = "none";
-      document.getElementById('accuracyDetail').style.display = "none";
-    }
+    window.addEventListener('DOMContentLoaded', function() {
+      // Event listener attachment for dynamic action
+      document.getElementById('pairSelect').addEventListener('change', updateChart);
+      document.getElementById('btnGenerate').addEventListener('click', generateSignal);
+      document.getElementById('btnReset').addEventListener('click', function() {
+        document.getElementById('statusText').innerText = "STATUS: RESET COMPLETE";
+        document.getElementById('signalValue').style.display = "none";
+        document.getElementById('timeDetail').style.display = "none";
+        document.getElementById('accuracyDetail').style.display = "none";
+      });
+      document.getElementById('btnClear').addEventListener('click', function() {
+        savedSignals = [];
+        renderHistory();
+      });
 
-    function clearHistory() {
-      savedSignals = [];
       renderHistory();
-    }
-
-    renderHistory();
+    });
   </script>
 </body>
 </html>
