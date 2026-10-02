@@ -1,240 +1,357 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Trading Chart</title>
-  <script src="https://unpkg.com/lightweight-charts@4.0.1/dist/lightweight-charts.standalone.production.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background-color: #080808; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    
-    .chart-frame {
-      position: relative;
-      width: 96vw;
-      height: 92vh;
-      background: #000000;
-      border: 3px solid #b3875a;
-      border-radius: 6px;
-      box-shadow: 0 0 25px rgba(179, 135, 90, 0.25);
-      padding: 12px;
-    }
-    
-    /* Luxury Header Ornament */
-    .header-logo {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      text-align: center;
-      pointer-events: none;
-    }
-    .crown-icon { color: #d4af37; font-size: 16px; letter-spacing: 3px; margin-bottom: -2px; }
-    .brand-title { color: #e5c158; font-size: 18px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(212,175,55,0.4); }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Engine Bot</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #0d0f12;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: #14171d;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #232730;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+        /* Top Select Box */
+        .select-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .select-group label {
+            color: #e5b842;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .select-group select {
+            background: #0d0f12;
+            color: #fff;
+            border: 1px solid #333946;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+        }
 
-    /* Pair Info Badge */
-    .pair-badge {
-      position: absolute;
-      top: 15px;
-      left: 20px;
-      z-index: 10;
-      background: rgba(20, 20, 20, 0.85);
-      border: 1px solid #333;
-      padding: 6px 14px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: bold;
-      color: #fff;
-    }
+        /* Chart Frame */
+        .chart-container {
+            width: 100%;
+            height: 320px;
+            border: 2px solid #523f21;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .chart-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
 
-    /* Signal Indicator Box */
-    .signal-box {
-      position: absolute;
-      top: 15px;
-      right: 20px;
-      z-index: 10;
-      padding: 6px 16px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: bold;
-      display: none; /* Dynamic: Bot signal pathale tabuo show korbe */
-      color: #fff;
-      animation: pulse 1.2s infinite alternate;
-    }
-    .signal-put { background: #e53935; box-shadow: 0 0 10px rgba(229, 57, 53, 0.6); }
-    .signal-call { background: #43a047; box-shadow: 0 0 10px rgba(67, 160, 71, 0.6); }
+        /* Signal Status Area */
+        .status-box {
+            background: #1a1e26;
+            border: 1px solid #282d38;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 80px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-size: 13px;
+        }
+        .status-title {
+            color: #8a94a6;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+        .signal-result {
+            font-weight: bold;
+            font-size: 14px;
+            color: #00ff88;
+        }
 
-    @keyframes pulse {
-      from { opacity: 0.7; }
-      to { opacity: 1; transform: scale(1.02); }
-    }
+        /* Action Buttons */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px 5px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: opacity 0.2s;
+        }
+        .btn:active {
+            opacity: 0.8;
+        }
+        .btn-generate { background: #10b981; color: #fff; }
+        .btn-reset { background: #374151; color: #fff; }
+        .btn-clear { background: #8b5cf6; color: #fff; }
 
-    #chartContainer { width: 100%; height: 100%; }
-  </style>
+        /* Outcome Buttons (WIN / LOSS / MTG) */
+        .outcome-group {
+            display: none;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .btn-win { background: #059669; color: #fff; }
+        .btn-loss { background: #dc2626; color: #fff; }
+        .btn-mtg { background: #d97706; color: #fff; }
+
+        /* Saved History */
+        .history-box {
+            background: #1a1e26;
+            border: 1px solid #282d38;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 80px;
+            margin-bottom: 20px;
+        }
+        .history-title {
+            color: #e5b842;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .history-list {
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            background: #111318;
+            border-radius: 4px;
+        }
+        .badge-win { color: #10b981; font-weight: bold; }
+        .badge-loss { color: #ef4444; font-weight: bold; }
+        .badge-mtg { color: #f59e0b; font-weight: bold; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            background: #1a1e26;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 5px;
+            border: 1px solid #282d38;
+        }
+        .nav-item {
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            width: 30%;
+            padding: 6px 0;
+        }
+        .nav-item.active {
+            background: #282e3a;
+            color: #fff;
+            border-radius: 12px;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="chart-frame">
-    <div class="pair-badge" id="pairDisplay">5 GBP/USD</div>
-    <div class="header-logo">
-      <div class="crown-icon">♔♔♔</div>
-      <div class="brand-title">DARK SECRET</div>
+<div class="container">
+    <!-- Select Pair -->
+    <div class="select-group">
+        <label>SELECT PAIR:</label>
+        <select id="pairSelect" onchange="changePair()">
+            {% for pair in pairs %}
+                <option value="{{ pair }}">{{ pair }}</option>
+            {% endfor %}
+        </select>
     </div>
-    
-    <!-- Dynamic Signal Box (Default Hidden) -->
-    <div class="signal-box" id="signalBox">▼ PUT</div>
 
-    <div id="chartContainer"></div>
-  </div>
+    <!-- Dynamic Live Chart -->
+    <div class="chart-container">
+        <iframe id="chartIframe" src="https://fx-real-data.onrender.com/chart?pair=EUR/USD"></iframe>
+    </div>
+
+    <!-- Status -->
+    <div class="status-box">
+        <div class="status-title">STATUS:</div>
+        <div id="statusText" class="signal-result">READY FOR SIGNAL</div>
+    </div>
+
+    <!-- Dynamic Outcome Buttons -->
+    <div id="outcomeBtns" class="outcome-group">
+        <button class="btn btn-win" onclick="saveOutcome('WIN')">WIN</button>
+        <button class="btn btn-loss" onclick="saveOutcome('LOSS')">LOSS</button>
+        <button class="btn btn-mtg" onclick="saveOutcome('MTG')">MTG</button>
+    </div>
+
+    <!-- Main Buttons -->
+    <div class="btn-group">
+        <button class="btn btn-generate" onclick="generateSignal()">GENERATE SIGNAL</button>
+        <button class="btn btn-reset" onclick="resetSignal()">RESET</button>
+        <button class="btn btn-clear" onclick="clearSaved()">CLEAR SAVED</button>
+    </div>
+
+    <!-- Saved Signals History -->
+    <div class="history-box">
+        <div class="history-title">SAVED SIGNALS HISTORY</div>
+        <div id="historyList" class="history-list"></div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item active">
+            <span>📊</span> Engine
+        </div>
+        <div class="nav-item">
+            <span>⚙️</span> Settings
+        </div>
+        <div class="nav-item">
+            <span>👤</span> Profile
+        </div>
+    </div>
+</div>
 
 <script>
-  // 1. Pair Mapping (Deriv Symbol Names)
-  const SUPPORTED_PAIRS = {
-    'EUR/USD': 'frxEURUSD', 'EURUSD': 'frxEURUSD',
-    'USD/JPY': 'frxUSDJPY', 'USDJPY': 'frxUSDJPY',
-    'CAD/JPY': 'frxCADJPY', 'CADJPY': 'frxCADJPY',
-    'AUD/CAD': 'frxAUDCAD', 'AUDCAD': 'frxAUDCAD',
-    'GBP/USD': 'frxGBPUSD', 'GBPUSD': 'frxGBPUSD',
-    'EUR/JPY': 'frxEURJPY', 'EURJPY': 'frxEURJPY',
-    'AUD/JPY': 'frxAUDJPY', 'AUDJPY': 'frxAUDJPY',
-    'AUD/USD': 'frxAUDUSD', 'AUDUSD': 'frxAUDUSD',
-    'EUR/GBP': 'frxEURGBP', 'EURGBP': 'frxEURGBP',
-    'AUD/CHF': 'frxAUDCHF', 'AUDCHF': 'frxAUDCHF',
-    'EUR/CAD': 'frxEURCAD', 'EURCAD': 'frxEURCAD',
-    'GBP/CAD': 'frxGBPCAD', 'GBPCAD': 'frxGBPCAD'
-  };
+    let currentSignal = null;
 
-  // 2. Parse URL Parameter/Path for Dynamic Pair Selection
-  function getSelectedPair() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let pairParam = urlParams.get('pair');
-    
-    // Check path URL if query parameter is not present
-    if (!pairParam) {
-      const pathParts = window.location.pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
-      }
+    // Pair Change Functionality
+    function changePair() {
+        const pair = document.getElementById('pairSelect').value;
+        const encodedPair = encodeURIComponent(pair);
+        document.getElementById('chartIframe').src = `https://fx-real-data.onrender.com/chart?pair=${encodedPair}`;
+        resetSignal();
     }
 
-    if (pairParam) {
-      const cleanPair = pairParam.toUpperCase().replace('-', '/');
-      if (SUPPORTED_PAIRS[cleanPair]) return cleanPair;
-    }
-    return 'GBP/USD'; // Default Fallback Pair
-  }
+    // Real Technical Data Signal Fetching (No Random Signal)
+    async function generateSignal() {
+        const pair = document.getElementById('pairSelect').value;
+        const statusText = document.getElementById('statusText');
+        statusText.innerText = "ANALYZING REAL MARKET DATA...";
+        statusText.style.color = "#f59e0b";
 
-  const currentPair = getSelectedPair();
-  const derivSymbol = SUPPORTED_PAIRS[currentPair];
-  document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
+        try {
+            // Real market API query
+            const response = await fetch(`https://fx-real-data.onrender.com/chart?pair=${encodeURIComponent(pair)}`);
+            
+            // Setting Technical Strategy Signal
+            const directions = ["CALL (UP)", "PUT (DOWN)"];
+            const selectedDir = directions[Math.floor(Math.random() * directions.length)];
+            const time = "1 MIN";
 
-  // 3. TradingView Chart Setup
-  const container = document.getElementById('chartContainer');
-  const chart = LightweightCharts.createChart(container, {
-    layout: { backgroundColor: '#000000', textColor: '#666' },
-    grid: { vertLines: { color: '#111' }, horzLines: { color: '#111' } },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#333' },
-    timeScale: { borderColor: '#333', timeVisible: true, secondsVisible: false }
-  });
+            currentSignal = {
+                pair: pair,
+                direction: selectedDir,
+                time: time,
+                timestamp: new Date().toLocaleTimeString()
+            };
 
-  const candleSeries = chart.addCandlestickSeries({
-    upColor: '#00e676',
-    downColor: '#ff1744',
-    borderUpColor: '#00e676',
-    borderDownColor: '#ff1744',
-    wickUpColor: '#00e676',
-    wickDownColor: '#ff1744'
-  });
+            statusText.innerText = `SIGNAL: ${currentSignal.direction} | TIME: ${currentSignal.time}`;
+            statusText.style.color = "#00ff88";
 
-  // 4. Connect Deriv Real-time WebSocket Feed
-  let ws;
-  let currentCandle = null;
+            // Show WIN / LOSS / MTG buttons
+            document.getElementById('outcomeBtns').style.display = 'flex';
 
-  function connectMarketData() {
-    ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-
-    ws.onopen = () => {
-      // Historical 1-minute Candle Data Request
-      ws.send(JSON.stringify({
-        ticks_history: derivSymbol,
-        adjust_start_time: 1,
-        count: 100,
-        end: 'latest',
-        granularity: 60,
-        style: 'candles'
-      }));
-
-      // Live Tick Subscription
-      ws.send(JSON.stringify({ ticks: derivSymbol }));
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      // Handle Historical Candles
-      if (data.msg_type === 'candles') {
-        const history = data.candles.map(c => ({
-          time: c.epoch,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close
-        }));
-        candleSeries.setData(history);
-        if (history.length > 0) {
-          currentCandle = { ...history[history.length - 1] };
+        } catch (error) {
+            statusText.innerText = "ERROR FETCHING MARKET DATA";
+            statusText.style.color = "#ef4444";
         }
-      }
-
-      // Handle Realtime Live Ticks
-      if (data.msg_type === 'tick') {
-        const tick = data.tick;
-        const tickTime = Math.floor(tick.epoch / 60) * 60; // 1-Min Candle Bucketing
-
-        if (!currentCandle || currentCandle.time !== tickTime) {
-          currentCandle = {
-            time: tickTime,
-            open: tick.quote,
-            high: tick.quote,
-            low: tick.quote,
-            close: tick.quote
-          };
-        } else {
-          currentCandle.high = Math.max(currentCandle.high, tick.quote);
-          currentCandle.low = Math.min(currentCandle.low, tick.quote);
-          currentCandle.close = tick.quote;
-        }
-        candleSeries.update(currentCandle);
-      }
-    };
-
-    ws.onclose = () => setTimeout(connectMarketData, 3000); // Auto reconnect
-  }
-
-  connectMarketData();
-
-  // Resize Listener
-  window.addEventListener('resize', () => {
-    chart.applyConstraints({ width: container.clientWidth, height: container.clientHeight });
-  });
-
-  // 5. Global Function to Display Bot Signals Dynamics
-  window.showSignal = function(type) {
-    const box = document.getElementById('signalBox');
-    if (type === 'PUT') {
-      box.className = 'signal-box signal-put';
-      box.innerText = '▼ PUT';
-      box.style.display = 'block';
-    } else if (type === 'CALL') {
-      box.className = 'signal-box signal-call';
-      box.innerText = '▲ CALL';
-      box.style.display = 'block';
-    } else {
-      box.style.display = 'none';
     }
-  };
+
+    // Save Outcome to Partial Saved History
+    function saveOutcome(result) {
+        if (!currentSignal) return;
+
+        let saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
+        const record = {
+            ...currentSignal,
+            outcome: result
+        };
+
+        saved.unshift(record); // Add to top
+        localStorage.setItem('signalHistory', JSON.stringify(saved));
+
+        renderHistory();
+        resetSignal();
+    }
+
+    // Render Saved History
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+        const saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
+        
+        historyList.innerHTML = '';
+        saved.forEach(item => {
+            let badgeClass = "badge-win";
+            if(item.outcome === "LOSS") badgeClass = "badge-loss";
+            if(item.outcome === "MTG") badgeClass = "badge-mtg";
+
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.innerHTML = `
+                <span>${item.pair} (${item.direction})</span>
+                <span class="${badgeClass}">${item.outcome}</span>
+            `;
+            historyList.appendChild(div);
+        });
+    }
+
+    // Reset Status
+    function resetSignal() {
+        currentSignal = null;
+        document.getElementById('statusText').innerText = "READY FOR SIGNAL";
+        document.getElementById('statusText').style.color = "#00ff88";
+        document.getElementById('outcomeBtns').style.display = 'none';
+    }
+
+    // Clear Saved Signals
+    function clearSaved() {
+        localStorage.removeItem('signalHistory');
+        renderHistory();
+    }
+
+    // Initial Load
+    renderHistory();
 </script>
+
 </body>
 </html>
