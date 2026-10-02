@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DARK SECRET Trading Chart</title>
+  <script src="https://unpkg.com/lightweight-charts@4.0.1/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #080808; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    
+    .chart-frame {
+      position: relative;
+      width: 96vw;
+      height: 92vh;
+      background: #000000;
+      border: 3px solid #b3875a;
+      border-radius: 6px;
+      box-shadow: 0 0 25px rgba(179, 135, 90, 0.25);
+      padding: 12px;
+    }
+    
+    /* Luxury Header Ornament */
+    .header-logo {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+      pointer-events: none;
+    }
+    .crown-icon { color: #d4af37; font-size: 16px; letter-spacing: 3px; margin-bottom: -2px; }
+    .brand-title { color: #e5c158; font-size: 18px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(212,175,55,0.4); }
+
+    /* Pair Info Badge */
+    .pair-badge {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(20, 20, 20, 0.85);
+      border: 1px solid #333;
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    /* Signal Indicator Box */
+    .signal-box {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      z-index: 10;
+      padding: 6px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      display: none; /* Dynamic: Bot signal pathale tabuo show korbe */
+      color: #fff;
+      animation: pulse 1.2s infinite alternate;
+    }
+    .signal-put { background: #e53935; box-shadow: 0 0 10px rgba(229, 57, 53, 0.6); }
+    .signal-call { background: #43a047; box-shadow: 0 0 10px rgba(67, 160, 71, 0.6); }
+
+    @keyframes pulse {
+      from { opacity: 0.7; }
+      to { opacity: 1; transform: scale(1.02); }
+    }
+
+    #chartContainer { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="chart-frame">
+    <div class="pair-badge" id="pairDisplay">5 GBP/USD</div>
+    <div class="header-logo">
+      <div class="crown-icon">♔♔♔</div>
+      <div class="brand-title">DARK SECRET</div>
+    </div>
+    
+    <!-- Dynamic Signal Box (Default Hidden) -->
+    <div class="signal-box" id="signalBox">▼ PUT</div>
+
+    <div id="chartContainer"></div>
+  </div>
+
+<script>
+  // 1. Pair Mapping (Deriv Symbol Names)
+  const SUPPORTED_PAIRS = {
+    'EUR/USD': 'frxEURUSD', 'EURUSD': 'frxEURUSD',
+    'USD/JPY': 'frxUSDJPY', 'USDJPY': 'frxUSDJPY',
+    'CAD/JPY': 'frxCADJPY', 'CADJPY': 'frxCADJPY',
+    'AUD/CAD': 'frxAUDCAD', 'AUDCAD': 'frxAUDCAD',
+    'GBP/USD': 'frxGBPUSD', 'GBPUSD': 'frxGBPUSD',
+    'EUR/JPY': 'frxEURJPY', 'EURJPY': 'frxEURJPY',
+    'AUD/JPY': 'frxAUDJPY', 'AUDJPY': 'frxAUDJPY',
+    'AUD/USD': 'frxAUDUSD', 'AUDUSD': 'frxAUDUSD',
+    'EUR/GBP': 'frxEURGBP', 'EURGBP': 'frxEURGBP',
+    'AUD/CHF': 'frxAUDCHF', 'AUDCHF': 'frxAUDCHF',
+    'EUR/CAD': 'frxEURCAD', 'EURCAD': 'frxEURCAD',
+    'GBP/CAD': 'frxGBPCAD', 'GBPCAD': 'frxGBPCAD'
+  };
+
+  // 2. Parse URL Parameter/Path for Dynamic Pair Selection
+  function getSelectedPair() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let pairParam = urlParams.get('pair');
+    
+    // Check path URL if query parameter is not present
+    if (!pairParam) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
+      }
+    }
+
+    if (pairParam) {
+      const cleanPair = pairParam.toUpperCase().replace('-', '/');
+      if (SUPPORTED_PAIRS[cleanPair]) return cleanPair;
+    }
+    return 'GBP/USD'; // Default Fallback Pair
+  }
+
+  const currentPair = getSelectedPair();
+  const derivSymbol = SUPPORTED_PAIRS[currentPair];
+  document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
+
+  // 3. TradingView Chart Setup
+  const container = document.getElementById('chartContainer');
+  const chart = LightweightCharts.createChart(container, {
+    layout: { backgroundColor: '#000000', textColor: '#666' },
+    grid: { vertLines: { color: '#111' }, horzLines: { color: '#111' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#333' },
+    timeScale: { borderColor: '#333', timeVisible: true, secondsVisible: false }
+  });
+
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#00e676',
+    downColor: '#ff1744',
+    borderUpColor: '#00e676',
+    borderDownColor: '#ff1744',
+    wickUpColor: '#00e676',
+    wickDownColor: '#ff1744'
+  });
+
+  // 4. Connect Deriv Real-time WebSocket Feed
+  let ws;
+  let currentCandle = null;
+
+  function connectMarketData() {
+    ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+
+    ws.onopen = () => {
+      // Historical 1-minute Candle Data Request
+      ws.send(JSON.stringify({
+        ticks_history: derivSymbol,
+        adjust_start_time: 1,
+        count: 100,
+        end: 'latest',
+        granularity: 60,
+        style: 'candles'
+      }));
+
+      // Live Tick Subscription
+      ws.send(JSON.stringify({ ticks: derivSymbol }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      // Handle Historical Candles
+      if (data.msg_type === 'candles') {
+        const history = data.candles.map(c => ({
+          time: c.epoch,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close
+        }));
+        candleSeries.setData(history);
+        if (history.length > 0) {
+          currentCandle = { ...history[history.length - 1] };
+        }
+      }
+
+      // Handle Realtime Live Ticks
+      if (data.msg_type === 'tick') {
+        const tick = data.tick;
+        const tickTime = Math.floor(tick.epoch / 60) * 60; // 1-Min Candle Bucketing
+
+        if (!currentCandle || currentCandle.time !== tickTime) {
+          currentCandle = {
+            time: tickTime,
+            open: tick.quote,
+            high: tick.quote,
+            low: tick.quote,
+            close: tick.quote
+          };
+        } else {
+          currentCandle.high = Math.max(currentCandle.high, tick.quote);
+          currentCandle.low = Math.min(currentCandle.low, tick.quote);
+          currentCandle.close = tick.quote;
+        }
+        candleSeries.update(currentCandle);
+      }
+    };
+
+    ws.onclose = () => setTimeout(connectMarketData, 3000); // Auto reconnect
+  }
+
+  connectMarketData();
+
+  // Resize Listener
+  window.addEventListener('resize', () => {
+    chart.applyConstraints({ width: container.clientWidth, height: container.clientHeight });
+  });
+
+  // 5. Global Function to Display Bot Signals Dynamics
+  window.showSignal = function(type) {
+    const box = document.getElementById('signalBox');
+    if (type === 'PUT') {
+      box.className = 'signal-box signal-put';
+      box.innerText = '▼ PUT';
+      box.style.display = 'block';
+    } else if (type === 'CALL') {
+      box.className = 'signal-box signal-call';
+      box.innerText = '▲ CALL';
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+    }
+  };
+</script>
+</body>
+</html>
