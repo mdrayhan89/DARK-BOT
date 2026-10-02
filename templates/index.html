@@ -29,7 +29,6 @@
             border: 1px solid #232730;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
-        /* Top Select Box */
         .select-group {
             display: flex;
             justify-content: space-between;
@@ -40,7 +39,6 @@
             color: #e5b842;
             font-weight: bold;
             font-size: 13px;
-            letter-spacing: 0.5px;
         }
         .select-group select {
             background: #0d0f12;
@@ -52,8 +50,6 @@
             outline: none;
             cursor: pointer;
         }
-
-        /* Chart Frame */
         .chart-container {
             width: 100%;
             height: 320px;
@@ -62,15 +58,12 @@
             overflow: hidden;
             background: #000;
             margin-bottom: 15px;
-            position: relative;
         }
         .chart-container iframe {
             width: 100%;
             height: 100%;
             border: none;
         }
-
-        /* Signal Status Area */
         .status-box {
             background: #1a1e26;
             border: 1px solid #282d38;
@@ -92,11 +85,10 @@
         }
         .signal-result {
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             color: #00ff88;
+            line-height: 1.4;
         }
-
-        /* Action Buttons */
         .btn-group {
             display: flex;
             gap: 8px;
@@ -108,19 +100,14 @@
             border: none;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
             text-transform: uppercase;
-            transition: opacity 0.2s;
-        }
-        .btn:active {
-            opacity: 0.8;
         }
         .btn-generate { background: #10b981; color: #fff; }
         .btn-reset { background: #374151; color: #fff; }
         .btn-clear { background: #8b5cf6; color: #fff; }
 
-        /* Outcome Buttons (WIN / LOSS / MTG) */
         .outcome-group {
             display: none;
             gap: 8px;
@@ -130,7 +117,6 @@
         .btn-loss { background: #dc2626; color: #fff; }
         .btn-mtg { background: #d97706; color: #fff; }
 
-        /* Saved History */
         .history-box {
             background: #1a1e26;
             border: 1px solid #282d38;
@@ -165,7 +151,6 @@
         .badge-loss { color: #ef4444; font-weight: bold; }
         .badge-mtg { color: #f59e0b; font-weight: bold; }
 
-        /* Bottom Nav */
         .bottom-nav {
             background: #1a1e26;
             border-radius: 20px;
@@ -196,7 +181,6 @@
 <body>
 
 <div class="container">
-    <!-- Select Pair -->
     <div class="select-group">
         <label>SELECT PAIR:</label>
         <select id="pairSelect" onchange="changePair()">
@@ -206,98 +190,87 @@
         </select>
     </div>
 
-    <!-- Dynamic Live Chart -->
     <div class="chart-container">
         <iframe id="chartIframe" src="https://fx-real-data.onrender.com/chart?pair=EUR/USD"></iframe>
     </div>
 
-    <!-- Status -->
     <div class="status-box">
         <div class="status-title">STATUS:</div>
         <div id="statusText" class="signal-result">READY FOR SIGNAL</div>
     </div>
 
-    <!-- Dynamic Outcome Buttons -->
     <div id="outcomeBtns" class="outcome-group">
         <button class="btn btn-win" onclick="saveOutcome('WIN')">WIN</button>
         <button class="btn btn-loss" onclick="saveOutcome('LOSS')">LOSS</button>
         <button class="btn btn-mtg" onclick="saveOutcome('MTG')">MTG</button>
     </div>
 
-    <!-- Main Buttons -->
     <div class="btn-group">
         <button class="btn btn-generate" onclick="generateSignal()">GENERATE SIGNAL</button>
         <button class="btn btn-reset" onclick="resetSignal()">RESET</button>
         <button class="btn btn-clear" onclick="clearSaved()">CLEAR SAVED</button>
     </div>
 
-    <!-- Saved Signals History -->
     <div class="history-box">
         <div class="history-title">SAVED SIGNALS HISTORY</div>
         <div id="historyList" class="history-list"></div>
     </div>
 
-    <!-- Navigation -->
     <div class="bottom-nav">
-        <div class="nav-item active">
-            <span>📊</span> Engine
-        </div>
-        <div class="nav-item">
-            <span>⚙️</span> Settings
-        </div>
-        <div class="nav-item">
-            <span>👤</span> Profile
-        </div>
+        <div class="nav-item active"><span>📊</span> Engine</div>
+        <div class="nav-item"><span>⚙️</span> Settings</div>
+        <div class="nav-item"><span>👤</span> Profile</div>
     </div>
 </div>
 
 <script>
     let currentSignal = null;
 
-    // Pair Change Functionality
     function changePair() {
         const pair = document.getElementById('pairSelect').value;
-        const encodedPair = encodeURIComponent(pair);
-        document.getElementById('chartIframe').src = `https://fx-real-data.onrender.com/chart?pair=${encodedPair}`;
+        document.getElementById('chartIframe').src = `https://fx-real-data.onrender.com/chart?pair=${encodeURIComponent(pair)}`;
         resetSignal();
     }
 
-    // Real Technical Data Signal Fetching (No Random Signal)
     async function generateSignal() {
         const pair = document.getElementById('pairSelect').value;
         const statusText = document.getElementById('statusText');
-        statusText.innerText = "ANALYZING REAL MARKET DATA...";
+        
+        statusText.innerText = "ANALYZING RSI, MACD & TREND...";
         statusText.style.color = "#f59e0b";
 
         try {
-            // Real market API query
-            const response = await fetch(`https://fx-real-data.onrender.com/chart?pair=${encodeURIComponent(pair)}`);
-            
-            // Setting Technical Strategy Signal
-            const directions = ["CALL (UP)", "PUT (DOWN)"];
-            const selectedDir = directions[Math.floor(Math.random() * directions.length)];
-            const time = "1 MIN";
+            const res = await fetch(`/api/analyze?pair=${encodeURIComponent(pair)}`);
+            const data = await res.json();
+
+            // Next 1 Minute Candle Time Calculation (e.g. 12:30 click -> 12:31 signal)
+            const now = new Date();
+            const nextMinute = new Date(now.getTime() + 60000);
+            const formattedTime = nextMinute.getHours().toString().padStart(2, '0') + ':' + 
+                                  nextMinute.getMinutes().toString().padStart(2, '0');
 
             currentSignal = {
-                pair: pair,
-                direction: selectedDir,
-                time: time,
-                timestamp: new Date().toLocaleTimeString()
+                pair: data.pair,
+                direction: data.direction,
+                targetTime: formattedTime,
+                reason: data.reason
             };
 
-            statusText.innerText = `SIGNAL: ${currentSignal.direction} | TIME: ${currentSignal.time}`;
+            statusText.innerHTML = `
+                <div>ENTRY TIME: <b>${formattedTime}</b> (1 MIN)</div>
+                <div>SIGNAL: <b>${data.direction}</b></div>
+                <div style="font-size:11px; color:#a0aec0;">[${data.reason}]</div>
+            `;
             statusText.style.color = "#00ff88";
 
-            // Show WIN / LOSS / MTG buttons
             document.getElementById('outcomeBtns').style.display = 'flex';
 
-        } catch (error) {
-            statusText.innerText = "ERROR FETCHING MARKET DATA";
+        } catch (e) {
+            statusText.innerText = "ERROR CALCULATING TECHNICAL DATA";
             statusText.style.color = "#ef4444";
         }
     }
 
-    // Save Outcome to Partial Saved History
     function saveOutcome(result) {
         if (!currentSignal) return;
 
@@ -307,14 +280,13 @@
             outcome: result
         };
 
-        saved.unshift(record); // Add to top
+        saved.unshift(record);
         localStorage.setItem('signalHistory', JSON.stringify(saved));
 
         renderHistory();
         resetSignal();
     }
 
-    // Render Saved History
     function renderHistory() {
         const historyList = document.getElementById('historyList');
         const saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
@@ -328,14 +300,13 @@
             const div = document.createElement('div');
             div.className = 'history-item';
             div.innerHTML = `
-                <span>${item.pair} (${item.direction})</span>
+                <span>${item.pair} (${item.targetTime}) -> ${item.direction.split(' ')[0]}</span>
                 <span class="${badgeClass}">${item.outcome}</span>
             `;
             historyList.appendChild(div);
         });
     }
 
-    // Reset Status
     function resetSignal() {
         currentSignal = null;
         document.getElementById('statusText').innerText = "READY FOR SIGNAL";
@@ -343,13 +314,11 @@
         document.getElementById('outcomeBtns').style.display = 'none';
     }
 
-    // Clear Saved Signals
     function clearSaved() {
         localStorage.removeItem('signalHistory');
         renderHistory();
     }
 
-    // Initial Load
     renderHistory();
 </script>
 
