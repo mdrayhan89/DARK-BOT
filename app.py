@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import requests
+import urllib.request
 import io
 
 app = Flask(__name__)
@@ -13,28 +13,27 @@ def index():
 @app.route('/api/analyze')
 def analyze():
     pair = request.args.get('pair', 'EUR/USD')
-    # Signal logic
     return jsonify({
         'pair': pair,
         'direction': 'BUY',
         'reason': 'RSI Oversold + MACD Bullish Crossover'
     })
 
-# --- 16:9 CHART SCREENSHOT API FIX ---
+# --- Built-in urllib for Screenshot Fetching (No 'requests' needed) ---
 @app.route('/api/screenshot')
 def get_chart_screenshot():
     pair = request.args.get('pair', 'EUR/USD')
-    # Real-time chart snapshot provider (16:9 Ratio - 1280x720)
-    chart_url = f"https://fx-real-data.onrender.com/chart-image?pair={pair}&width=1280&height=720"
+    chart_url = f"https://fx-real-data.onrender.com/chart-image?pair={urllib.parse.quote(pair)}&width=1280&height=720"
     
     try:
-        res = requests.get(chart_url, timeout=10)
-        if res.status_code == 200:
-            return send_file(io.BytesIO(res.content), mimetype='image/png')
+        req = urllib.request.Request(chart_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                img_data = response.read()
+                return send_file(io.BytesIO(img_data), mimetype='image/png')
     except Exception as e:
         pass
         
-    # Fallback placeholder 16:9 image
     return send_file(io.BytesIO(b''), mimetype='image/png')
 
 if __name__ == '__main__':
