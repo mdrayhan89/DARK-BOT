@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, jsonify
 import urllib.request
 import urllib.parse
 import json
+import subprocess
+import os
+import base64
 
 app = Flask(__name__)
 
@@ -20,6 +23,21 @@ def analyze():
         'reason': 'RSI Oversold + MACD Bullish Crossover'
     })
 
+# --- Direct TradingView Candlestick Chart Screenshot via TradingView Engine ---
+def get_real_candlestick_screenshot(pair):
+    clean_pair = pair.replace('/', '').upper()
+    # TradingView static candlestick chart API endpoint
+    tv_chart_url = f"https://s3.tradingview.com/snapshots/{clean_pair[0].lower()}/{clean_pair}.png"
+    
+    try:
+        req = urllib.request.Request(tv_chart_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+                return response.read()
+    except Exception:
+        pass
+    return None
+
 @app.route('/api/send_telegram_signal', methods=['POST'])
 def send_telegram_signal():
     try:
@@ -28,32 +46,15 @@ def send_telegram_signal():
         chat_id = data.get('chat_id')
         text_msg = data.get('text')
         with_ss = data.get('with_ss', False)
-        pair = data.get('pair', 'EUR/USD').replace('/', '')
+        pair = data.get('pair', 'EUR/USD')
 
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
         if with_ss:
-            # High quality TradingView chart snapshot endpoint (16:9 ratio - 1280x720)
-            chart_url = f"https://s3.tradingview.com/snapshots/{pair.lower()[0]}/{pair}.png"
-            
-            # Alternative dynamic chart generator (16:9 ratio - 1280x720)
-            fallback_chart_url = f"https://quickchart.io/chart?bkg=14171d&c={{type:'line',data:{{labels:['M5','M4','M3','M2','M1'],datasets:[{{label:'{pair}',data:[12,19,15,17,24],borderColor:'%2300ff88',fill:false}}]}}}}&width=1280&height=720"
+            # Fetch real TradingView candlestick chart image
+            img_bytes = get_real_candlestick_screenshot(pair)
 
-            img_bytes = None
-            
-            # 1st Attempt: Fetch Chart Image
-            for target_url in [f"https://fx-real-data.onrender.com/chart-image?pair={pair}&width=1280&height=720", fallback_chart_url]:
-                try:
-                    req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=6) as response:
-                        if response.status == 200:
-                            img_bytes = response.read()
-                            break
-                except Exception:
-                    continue
-
-            # If image fetched successfully, send via Telegram sendPhoto
             if img_bytes:
                 boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
                 body = []
@@ -72,7 +73,7 @@ def send_telegram_signal():
                 with urllib.request.urlopen(tg_req) as tg_res:
                     return jsonify({'success': True})
 
-        # Text Fallback Message
+        # Text Fallback
         payload = json.dumps({'chat_id': chat_id, 'text': text_msg}).encode('utf-8')
         tg_req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage",
