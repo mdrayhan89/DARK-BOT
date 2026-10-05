@@ -24,14 +24,27 @@ def analyze():
 
 def send_photo_in_background(token, chat_id, text_msg, target_url, clean_pair):
     """
-    Background Thread: Text Signal instantly jawar por SS render hole eita photo hisebe pathabe
+    Background Thread: 16:9 Aspect Ratio (1280x720) & Zoomed High-Quality Screenshot Capture
     """
     try:
-        # Fast Canvas Rendering Service
-        ss_api_url = f"https://api.microlink.io?url={target_url}&screenshot=true"
+        # MicroLink screenshot API with 16:9 dimension & scale factor for zoomed effect
+        microlink_params = {
+            'url': target_url,
+            'screenshot': 'true',
+            'meta': 'false',
+            'embed': 'screenshot.url',
+            'viewport.width': 1280,
+            'viewport.height': 720,
+            'viewport.deviceScaleFactor': 2,  # Zoom & HD Quality
+            'screenshot.element': 'body'
+        }
+        
+        encoded_params = urllib.parse.urlencode(microlink_params)
+        ss_api_url = f"https://api.microlink.io?{encoded_params}"
+        
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         
-        r = requests.get(ss_api_url, headers=headers, timeout=10)
+        r = requests.get(ss_api_url, headers=headers, timeout=12)
         if r.status_code == 200:
             res_json = r.json()
             ss_img_url = res_json.get('data', {}).get('screenshot', {}).get('url')
@@ -44,9 +57,9 @@ def send_photo_in_background(token, chat_id, text_msg, target_url, clean_pair):
                     payload = {'chat_id': chat_id, 'caption': text_msg}
                     
                     requests.post(tg_photo_url, data=payload, files=files, timeout=15)
-                    print("Background Screenshot Sent Successfully!")
+                    print("16:9 Zoomed Screenshot Sent Successfully!")
     except Exception as e:
-        print("Background SS Error:", e)
+        print("Background SS Error:", str(e))
 
 @app.route('/api/send_telegram_signal', methods=['POST'])
 def send_telegram_signal():
@@ -63,14 +76,13 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-        # STEP 1: Fast Text Signal Instant Send (0.1 Second)
+        # STEP 1: Fast Text Signal Instant Send (0.1s response time)
         tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         text_payload = {'chat_id': chat_id, 'text': text_msg}
         
-        # Immediate send without waiting for SS
-        resp = requests.post(tg_text_url, json=text_payload, timeout=5)
+        requests.post(tg_text_url, json=text_payload, timeout=5)
 
-        # STEP 2: Background Thread-e Screenshot Process (No Delay in UI)
+        # STEP 2: Asynchronous Background Thread for 16:9 Zoomed Screenshot Capture
         if with_ss:
             target_chart_url = f"https://fx-real-data.onrender.com/chart?pair={urllib.parse.quote(raw_pair)}"
             
@@ -81,7 +93,7 @@ def send_telegram_signal():
             thread.daemon = True
             thread.start()
 
-        return jsonify({'success': True, 'mode': 'instant_signal_sent'})
+        return jsonify({'success': True, 'mode': 'instant_signal_with_background_ss'})
 
     except Exception as e:
         print("Telegram Send Error:")
