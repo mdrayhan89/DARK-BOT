@@ -29,6 +29,15 @@
             border: 1px solid #232730;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
+        
+        /* Views visibility */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
         .select-group {
             display: flex;
             justify-content: space-between;
@@ -52,7 +61,7 @@
         }
         .chart-container {
             width: 100%;
-            height: 320px;
+            height: 300px;
             border: 2px solid #523f21;
             border-radius: 10px;
             overflow: hidden;
@@ -69,7 +78,7 @@
             border: 1px solid #282d38;
             border-radius: 8px;
             padding: 12px;
-            min-height: 80px;
+            min-height: 75px;
             margin-bottom: 15px;
             display: flex;
             flex-direction: column;
@@ -151,6 +160,75 @@
         .badge-loss { color: #ef4444; font-weight: bold; }
         .badge-mtg { color: #f59e0b; font-weight: bold; }
 
+        /* Settings CSS */
+        .settings-card {
+            background: #1a1e26;
+            border: 1px solid #282d38;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            color: #e5b842;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .form-group input[type="text"], .form-group input[type="password"] {
+            width: 100%;
+            background: #0d0f12;
+            border: 1px solid #333946;
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            outline: none;
+        }
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .toggle-group label {
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #374151; transition: .3s; border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .btn-full {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-save-settings { background: #10b981; color: #fff; }
+        .btn-send-report { background: #3b82f6; color: #fff; margin-top: 10px; }
+
+        /* Navigation */
         .bottom-nav {
             background: #1a1e26;
             border-radius: 20px;
@@ -181,50 +259,98 @@
 <body>
 
 <div class="container">
-    <div class="select-group">
-        <label>SELECT PAIR:</label>
-        <select id="pairSelect" onchange="changePair()">
-            {% for pair in pairs %}
-                <option value="{{ pair }}">{{ pair }}</option>
-            {% endfor %}
-        </select>
+
+    <!-- ENGINE TAB -->
+    <div id="engineTab" class="tab-content active">
+        <div class="select-group">
+            <label>SELECT PAIR:</label>
+            <select id="pairSelect" onchange="changePair()">
+                {% for pair in pairs %}
+                    <option value="{{ pair }}">{{ pair }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="chart-container">
+            <iframe id="chartIframe" src="https://fx-real-data.onrender.com/chart?pair=EUR/USD"></iframe>
+        </div>
+
+        <div class="status-box">
+            <div class="status-title">STATUS:</div>
+            <div id="statusText" class="signal-result">READY FOR SIGNAL</div>
+        </div>
+
+        <div id="outcomeBtns" class="outcome-group">
+            <button class="btn btn-win" onclick="saveOutcome('WIN')">WIN</button>
+            <button class="btn btn-loss" onclick="saveOutcome('LOSS')">LOSS</button>
+            <button class="btn btn-mtg" onclick="saveOutcome('MTG')">MTG</button>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-generate" onclick="generateSignal()">GENERATE SIGNAL</button>
+            <button class="btn btn-reset" onclick="resetSignal()">RESET</button>
+            <button class="btn btn-clear" onclick="clearSaved()">CLEAR SAVED</button>
+        </div>
+
+        <div class="history-box">
+            <div class="history-title">SAVED SIGNALS HISTORY</div>
+            <div id="historyList" class="history-list"></div>
+        </div>
     </div>
 
-    <div class="chart-container">
-        <iframe id="chartIframe" src="https://fx-real-data.onrender.com/chart?pair=EUR/USD"></iframe>
+    <!-- SETTINGS TAB -->
+    <div id="settingsTab" class="tab-content">
+        <div class="settings-card">
+            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">TELEGRAM BOT CONFIG</h3>
+            <div class="form-group">
+                <label>BOT TOKEN:</label>
+                <input type="password" id="botTokenInput" placeholder="Enter Bot Token">
+            </div>
+            <div class="form-group">
+                <label>CHAT ID:</label>
+                <input type="text" id="chatIdInput" placeholder="Enter Chat ID">
+            </div>
+
+            <div class="toggle-group">
+                <label>SIGNAL WITH SCREENSHOT (SS)</label>
+                <label class="switch">
+                    <input type="checkbox" id="ssToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button class="btn-full btn-save-settings" onclick="saveSettings()">SAVE SETTINGS</button>
+            <button class="btn-full btn-send-report" onclick="sendTelegramPartialResult()">SEND PARTIAL / FULL REPORT</button>
+        </div>
     </div>
 
-    <div class="status-box">
-        <div class="status-title">STATUS:</div>
-        <div id="statusText" class="signal-result">READY FOR SIGNAL</div>
-    </div>
-
-    <div id="outcomeBtns" class="outcome-group">
-        <button class="btn btn-win" onclick="saveOutcome('WIN')">WIN</button>
-        <button class="btn btn-loss" onclick="saveOutcome('LOSS')">LOSS</button>
-        <button class="btn btn-mtg" onclick="saveOutcome('MTG')">MTG</button>
-    </div>
-
-    <div class="btn-group">
-        <button class="btn btn-generate" onclick="generateSignal()">GENERATE SIGNAL</button>
-        <button class="btn btn-reset" onclick="resetSignal()">RESET</button>
-        <button class="btn btn-clear" onclick="clearSaved()">CLEAR SAVED</button>
-    </div>
-
-    <div class="history-box">
-        <div class="history-title">SAVED SIGNALS HISTORY</div>
-        <div id="historyList" class="history-list"></div>
-    </div>
-
+    <!-- NAVIGATION BAR -->
     <div class="bottom-nav">
-        <div class="nav-item active"><span>📊</span> Engine</div>
-        <div class="nav-item"><span>⚙️</span> Settings</div>
-        <div class="nav-item"><span>👤</span> Profile</div>
+        <div id="navEngine" class="nav-item active" onclick="switchTab('engine')"><span>📊</span> Engine</div>
+        <div id="navSettings" class="nav-item" onclick="switchTab('settings')"><span>⚙️</span> Settings</div>
+        <div id="navProfile" class="nav-item"><span>👤</span> Profile</div>
     </div>
 </div>
 
 <script>
     let currentSignal = null;
+
+    // Switch Tabs
+    function switchTab(tab) {
+        document.getElementById('engineTab').classList.remove('active');
+        document.getElementById('settingsTab').classList.remove('active');
+        document.getElementById('navEngine').classList.remove('active');
+        document.getElementById('navSettings').classList.remove('active');
+
+        if(tab === 'engine') {
+            document.getElementById('engineTab').classList.add('active');
+            document.getElementById('navEngine').classList.add('active');
+        } else if(tab === 'settings') {
+            document.getElementById('settingsTab').classList.add('active');
+            document.getElementById('navSettings').classList.add('active');
+            loadSettings();
+        }
+    }
 
     function changePair() {
         const pair = document.getElementById('pairSelect').value;
@@ -232,10 +358,18 @@
         resetSignal();
     }
 
+    // GENERATE SIGNAL with ACTIVE LOCK Check
     async function generateSignal() {
-        const pair = document.getElementById('pairSelect').value;
         const statusText = document.getElementById('statusText');
-        
+
+        // LOCK CHECK: Jodi ekhono currentSignal active thake
+        if (currentSignal !== null) {
+            statusText.innerText = "ALREADY A SIGNAL IS ACTIVE! PLEASE SUBMIT RESULT FIRST.";
+            statusText.style.color = "#ef4444";
+            return;
+        }
+
+        const pair = document.getElementById('pairSelect').value;
         statusText.innerText = "ANALYZING RSI, MACD & TREND...";
         statusText.style.color = "#f59e0b";
 
@@ -243,7 +377,6 @@
             const res = await fetch(`/api/analyze?pair=${encodeURIComponent(pair)}`);
             const data = await res.json();
 
-            // Next 1 Minute Candle Time Calculation (e.g. 12:30 click -> 12:31 signal)
             const now = new Date();
             const nextMinute = new Date(now.getTime() + 60000);
             const formattedTime = nextMinute.getHours().toString().padStart(2, '0') + ':' + 
@@ -264,6 +397,9 @@
             statusText.style.color = "#00ff88";
 
             document.getElementById('outcomeBtns').style.display = 'flex';
+
+            // Send Telegram alert if config exists
+            sendTelegramSignalAlert(currentSignal);
 
         } catch (e) {
             statusText.innerText = "ERROR CALCULATING TECHNICAL DATA";
@@ -317,6 +453,89 @@
     function clearSaved() {
         localStorage.removeItem('signalHistory');
         renderHistory();
+    }
+
+    // Settings Functions
+    function saveSettings() {
+        const token = document.getElementById('botTokenInput').value;
+        const chatId = document.getElementById('chatIdInput').value;
+        const ss = document.getElementById('ssToggle').checked;
+
+        localStorage.setItem('tgToken', token);
+        localStorage.setItem('tgChatId', chatId);
+        localStorage.setItem('tgSS', ss);
+
+        alert("Settings Saved Successfully!");
+    }
+
+    function loadSettings() {
+        document.getElementById('botTokenInput').value = localStorage.getItem('tgToken') || '';
+        document.getElementById('chatIdInput').value = localStorage.getItem('tgChatId') || '';
+        document.getElementById('ssToggle').checked = localStorage.getItem('tgSS') === 'true';
+    }
+
+    // Telegram API Helpers
+    async function sendTelegramSignalAlert(sig) {
+        const token = localStorage.getItem('tgToken');
+        const chatId = localStorage.getItem('tgChatId');
+        const withSS = localStorage.getItem('tgSS') === 'true';
+
+        if (!token || !chatId) return;
+
+        let message = `🚨 <b>NEW TRADING SIGNAL</b> 🚨\n\n`;
+        message += `<b>Pair:</b> ${sig.pair}\n`;
+        message += `<b>Time:</b> ${sig.targetTime} (1 MIN)\n`;
+        message += `<b>Direction:</b> ${sig.direction}\n`;
+        if(withSS) message += `📷 <i>[Screenshot Mode Enabled]</i>\n`;
+
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        });
+    }
+
+    async function sendTelegramPartialResult() {
+        const token = localStorage.getItem('tgToken');
+        const chatId = localStorage.getItem('tgChatId');
+        const saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
+
+        if (!token || !chatId) {
+            alert("Please save Telegram Token and Chat ID first!");
+            return;
+        }
+
+        if (saved.length === 0) {
+            alert("No saved history found to send!");
+            return;
+        }
+
+        let wins = saved.filter(x => x.outcome === 'WIN').length;
+        let mtgs = saved.filter(x => x.outcome === 'MTG').length;
+        let losses = saved.filter(x => x.outcome === 'LOSS').length;
+
+        let report = `📊 <b>PARTIAL / FULL SIGNALS REPORT</b> 📊\n\n`;
+        saved.forEach((item, index) => {
+            report += `${index + 1}. ${item.pair} | ${item.targetTime} -> <b>${item.outcome}</b>\n`;
+        });
+
+        report += `\n✅ WIN: ${wins} | ⚠️ MTG: ${mtgs} | ❌ LOSS: ${losses}`;
+
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: report,
+                parse_mode: 'HTML'
+            })
+        }).then(() => {
+            alert("Report sent to Telegram!");
+        });
     }
 
     renderHistory();
