@@ -1,7 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-import urllib.request
-import urllib.parse
-import json
 import requests
 
 app = Flask(__name__)
@@ -34,31 +31,40 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-        # SS Toggle ON থাকলে চার্ট ডাউনলোড করে Telegram-এ ছবি পাঠানো হবে
+        # SS Toggle ON থাকলে সরাসরি আপনার Chart API থেকে স্ক্রিনশট টেনে নেওয়া হবে
         if with_ss:
-            chart_img_url = f"https://quickchart.io/chart?bkg=14171d&c={{type:'line',data:{{labels:['M5','M4','M3','M2','M1'],datasets:[{{label:'{pair}',data:[10,15,13,18,25],borderColor:'%2300ff88',fill:false}}]}}}}&width=1280&height=720"
+            # Apnar Nijer Chart Image API Endpoint
+            my_chart_api_url = f"https://fx-real-data.onrender.com/chart-image?pair={pair}"
             
-            # 1. Download image to server bytes
-            img_res = requests.get(chart_img_url, timeout=10)
-            
-            if img_res.status_code == 200 and len(img_res.content) > 500:
-                # 2. Direct Multipart Photo Upload to Telegram
-                tg_url = f"https://api.telegram.org/bot{token}/sendPhoto"
-                files = {
-                    'photo': ('chart.png', img_res.content, 'image/png')
-                }
-                payload = {
-                    'chat_id': chat_id,
-                    'caption': text_msg
-                }
-                
-                resp = requests.post(tg_url, data=payload, files=files, timeout=15)
-                res_data = resp.json()
-                
-                if res_data.get('ok'):
-                    return jsonify({'success': True, 'mode': 'photo_sent'})
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
 
-        # SS OFF থাকলে বা ছবি পাঠাতে ব্যর্থ হলে শুধু টেক্সট পাঠানো হবে
+            try:
+                # Fetching image from your API
+                img_res = requests.get(my_chart_api_url, headers=headers, timeout=12)
+                
+                if img_res.status_code == 200 and len(img_res.content) > 500:
+                    tg_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+                    files = {
+                        'photo': (f'{pair}_chart.png', img_res.content, 'image/png')
+                    }
+                    payload = {
+                        'chat_id': chat_id,
+                        'caption': text_msg
+                    }
+                    
+                    resp = requests.post(tg_url, data=payload, files=files, timeout=15)
+                    res_data = resp.json()
+                    
+                    if res_data.get('ok'):
+                        return jsonify({'success': True, 'mode': 'photo_sent'})
+                else:
+                    print(f"Chart API Failed with status: {img_res.status_code}")
+            except Exception as ss_err:
+                print("Failed to fetch image from personal API:", str(ss_err))
+
+        # SS OFF থাকলে বা আপনার API ইমেজ রেন্ডার করতে ব্যর্থ হলে শুধু টেক্সট মেসেজ যাবে
         tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         text_payload = {
             'chat_id': chat_id,
