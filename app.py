@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-import math
+import time
 
 app = Flask(__name__)
 
@@ -13,24 +13,17 @@ PAIRS = [
 def index():
     return render_template('index.html', pairs=PAIRS)
 
-# Dynamic Indicator Algorithm for Signal Calculation
 @app.route('/api/analyze', methods=['GET'])
 def analyze_market():
     pair = request.args.get('pair', 'EUR/USD')
     
-    # Real-time indicators logic (RSI, MACD, Trend calculation)
-    # Ekhane pair Hash / Deterministic algorithm babohar kora hoyeche jeno random na hoy
     pair_sum = sum(ord(c) for c in pair)
-    import time
     current_time = time.strftime("%H:%M")
     minute = int(time.strftime("%M"))
     
-    # RSI Logic
     rsi = (pair_sum + minute * 7) % 100
-    # MACD Trend Logic
     macd_delta = ((pair_sum * 13) % 200) - 100
     
-    # Signal Decision Matrix based on Technical Indicators
     if rsi < 40 or macd_delta > 0:
         direction = "CALL (UP)"
         reason = f"RSI Oversold ({rsi}) & MACD Bullish Crossover"
