@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 import requests
+import json
 import traceback
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -37,34 +39,30 @@ def send_telegram_signal():
         img_bytes = None
 
         if with_ss:
-            # Apnar Sothik Chart Endpoint URL
-            correct_chart_url = f"https://fx-real-data.onrender.com/chart?pair={raw_pair}"
+            # Apnar Sothik Chart Web Page URL
+            target_chart_url = f"https://fx-real-data.onrender.com/chart?pair={urllib.parse.quote(raw_pair)}"
             
-            # Webshot / Screenshot rendering API or direct fetch
-            # Note: Chart url jodi HTML hoy, tobon Screenshot API call kora lagbe
-            screenshot_api_url = f"https://api.screenshotmachine.com?key=FREE_OR_YOUR_KEY&url={correct_chart_url}&dimension=1024x768"
+            # Free HTML Screenshot API Generators (No API Key Required)
+            screenshot_endpoints = [
+                f"https://render-tron.appspot.com/screenshot/{target_chart_url}",
+                f"https://mini.s-shot.ru/1280x720/PNG/1280/Z100/?{target_chart_url}",
+                f"https://api.html2pdf.app/v1/generate?url={target_chart_url}&apiKey=public"
+            ]
 
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
 
-            try:
-                print(f"Fetching chart from: {correct_chart_url}")
-                res = requests.get(correct_chart_url, headers=headers, timeout=12)
-                
-                # Check if returned response is direct image
-                if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
-                    img_bytes = res.content
-                else:
-                    # If /chart returns HTML page instead of raw image bytes
-                    print("URL returned HTML, using Screenshot fallback...")
-                    # Screenshot machine or html2image endpoint
-                    ss_res = requests.get(screenshot_api_url, timeout=15)
-                    if ss_res.status_code == 200:
-                        img_bytes = ss_res.content
-
-            except Exception as fetch_err:
-                print(f"Fetch Error: {fetch_err}")
+            for ss_url in screenshot_endpoints:
+                try:
+                    print(f"Capturing screenshot via: {ss_url}")
+                    res = requests.get(ss_url, headers=headers, timeout=15)
+                    if res.status_code == 200 and len(res.content) > 2000:
+                        img_bytes = res.content
+                        print("Screenshot capture successful!")
+                        break
+                except Exception as ss_err:
+                    print(f"Screenshot endpoint failed: {ss_err}")
 
         # Telegram-e photo soh signal pathano
         if img_bytes:
@@ -83,7 +81,7 @@ def send_telegram_signal():
             if res_data.get('ok'):
                 return jsonify({'success': True, 'mode': 'photo_sent'})
 
-        # Image capture na hole fallback text send
+        # Fallback to Text Message if screenshot fails
         tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         text_payload = {'chat_id': chat_id, 'text': text_msg}
         requests.post(tg_text_url, json=text_payload, timeout=10)
