@@ -3,7 +3,7 @@ import requests
 import json
 import traceback
 import urllib.parse
-import concurrent.futures
+import threading
 
 app = Flask(__name__)
 
@@ -22,42 +22,31 @@ def analyze():
         'reason': 'RSI Oversold + MACD Bullish Crossover'
     })
 
-def fetch_chart_image_fast(target_url, clean_pair):
+def send_photo_in_background(token, chat_id, text_msg, target_url, clean_pair):
     """
-    খুব দ্রুত (১-২ সেকেন্ডে) স্ক্রিনশট রিটার্ন করার জন্য ফাস্ট সার্ভিসসমূহ
+    Background Thread: Text Signal instantly jawar por SS render hole eita photo hisebe pathabe
     """
-    fast_ss_urls = [
-        f"https://screenshot.abstractapi.com/v1/?api_key=sample&url={target_url}&width=1000&height=600",
-        f"https://api.microlink.io?url={target_url}&screenshot=true&meta=false&embed=screenshot.url",
-        f"https://shot.screenshotapi.net/screenshot?url={target_url}&width=1000&height=600&output=image"
-    ]
-    
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-
-    # microlink instant screenshot extractor
     try:
-        micro_url = f"https://api.microlink.io?url={target_url}&screenshot=true"
-        r = requests.get(micro_url, headers=headers, timeout=3.5)
+        # Fast Canvas Rendering Service
+        ss_api_url = f"https://api.microlink.io?url={target_url}&screenshot=true"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        
+        r = requests.get(ss_api_url, headers=headers, timeout=10)
         if r.status_code == 200:
             res_json = r.json()
             ss_img_url = res_json.get('data', {}).get('screenshot', {}).get('url')
+            
             if ss_img_url:
-                img_data = requests.get(ss_img_url, timeout=3).content
+                img_data = requests.get(ss_img_url, timeout=10).content
                 if len(img_data) > 1000:
-                    return img_data
+                    tg_photo_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+                    files = {'photo': (f'{clean_pair}_chart.png', img_data, 'image/png')}
+                    payload = {'chat_id': chat_id, 'caption': text_msg}
+                    
+                    requests.post(tg_photo_url, data=payload, files=files, timeout=15)
+                    print("Background Screenshot Sent Successfully!")
     except Exception as e:
-        print("Microlink SS Error:", e)
-
-    # Backup Fast Direct Fetch
-    for ss_endpoint in fast_ss_urls:
-        try:
-            res = requests.get(ss_endpoint, headers=headers, timeout=3)
-            if res.status_code == 200 and len(res.content) > 2000:
-                return res.content
-        except Exception:
-            continue
-
-    return None
+        print("Background SS Error:", e)
 
 @app.route('/api/send_telegram_signal', methods=['POST'])
 def send_telegram_signal():
@@ -74,42 +63,25 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-        target_chart_url = f"https://fx-real-data.onrender.com/chart?pair={urllib.parse.quote(raw_pair)}"
-        
-        img_bytes = None
-
-        if with_ss:
-            # Parallel Threading দিয়ে ১-২ সেকেন্ডে SS ফেচ করা হবে
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(fetch_chart_image_fast, target_chart_url, clean_pair)
-                try:
-                    img_bytes = future.result(timeout=4.0) # ৪ সেকেন্ডের বেশি ওয়েট করবে না
-                except concurrent.futures.TimeoutError:
-                    print("SS Fetching Timed out! Sending fast signal.")
-
-        # ১. SS পাওয়া গেলে ফটো সহ টেলিগ্রামে সিগন্যাল যাবে
-        if img_bytes:
-            tg_photo_url = f"https://api.telegram.org/bot{token}/sendPhoto"
-            files = {
-                'photo': (f'{clean_pair}_chart.png', img_bytes, 'image/png')
-            }
-            payload = {
-                'chat_id': chat_id,
-                'caption': text_msg
-            }
-            
-            tg_res = requests.post(tg_photo_url, data=payload, files=files, timeout=5)
-            res_data = tg_res.json()
-            
-            if res_data.get('ok'):
-                return jsonify({'success': True, 'mode': 'photo_sent_instantly'})
-
-        # ২. SS দ্রুত না আসলে ১ সেকেন্ডে টেক্সট সিগন্যাল সেন্ড হবে (No Delay)
+        # STEP 1: Fast Text Signal Instant Send (0.1 Second)
         tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         text_payload = {'chat_id': chat_id, 'text': text_msg}
-        requests.post(tg_text_url, json=text_payload, timeout=5)
         
-        return jsonify({'success': True, 'mode': 'fast_text_sent'})
+        # Immediate send without waiting for SS
+        resp = requests.post(tg_text_url, json=text_payload, timeout=5)
+
+        # STEP 2: Background Thread-e Screenshot Process (No Delay in UI)
+        if with_ss:
+            target_chart_url = f"https://fx-real-data.onrender.com/chart?pair={urllib.parse.quote(raw_pair)}"
+            
+            thread = threading.Thread(
+                target=send_photo_in_background,
+                args=(token, chat_id, text_msg, target_chart_url, clean_pair)
+            )
+            thread.daemon = True
+            thread.start()
+
+        return jsonify({'success': True, 'mode': 'instant_signal_sent'})
 
     except Exception as e:
         print("Telegram Send Error:")
