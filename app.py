@@ -2,9 +2,6 @@ from flask import Flask, render_template, request, jsonify
 import urllib.request
 import urllib.parse
 import json
-import subprocess
-import os
-import base64
 
 app = Flask(__name__)
 
@@ -23,19 +20,34 @@ def analyze():
         'reason': 'RSI Oversold + MACD Bullish Crossover'
     })
 
-# --- Direct TradingView Candlestick Chart Screenshot via TradingView Engine ---
-def get_real_candlestick_screenshot(pair):
-    clean_pair = pair.replace('/', '').upper()
-    # TradingView static candlestick chart API endpoint
-    tv_chart_url = f"https://s3.tradingview.com/snapshots/{clean_pair[0].lower()}/{clean_pair}.png"
+# --- Live Candlestick Image Fetcher ---
+def get_candlestick_chart_bytes(pair_symbol):
+    # Standardizing pair symbol format (e.g. FX:EURUSD or FX:USDJPY)
+    clean_symbol = pair_symbol.replace('/', '').replace(' ', '').upper()
+    formatted_symbol = f"FX:{clean_symbol}"
     
-    try:
-        req = urllib.request.Request(tv_chart_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            if response.status == 200:
-                return response.read()
-    except Exception:
-        pass
+    # Live TradingView Candlestick Generator URL
+    chart_url = f"https://s3.tradingview.com/snapshots/{clean_symbol[0].lower()}/{clean_symbol}.png"
+    
+    # Backup real-time candlestick API rendering
+    backup_url = f"https://api.chart-img.com/v2/tradingview/advanced-chart?symbol={formatted_symbol}&interval=1m&theme=dark&width=1280&height=720"
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+    }
+
+    for target_url in [backup_url, chart_url]:
+        try:
+            req = urllib.request.Request(target_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as response:
+                if response.status == 200:
+                    data = response.read()
+                    if len(data) > 1000: # Ensure valid image size
+                        return data
+        except Exception as err:
+            print(f"Fetch failed for {target_url}: {err}")
+            continue
+            
     return None
 
 @app.route('/api/send_telegram_signal', methods=['POST'])
@@ -51,16 +63,16 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
+        # Try sending Photo with Caption if with_ss is True
         if with_ss:
-            # Fetch real TradingView candlestick chart image
-            img_bytes = get_real_candlestick_screenshot(pair)
+            img_bytes = get_candlestick_chart_bytes(pair)
 
             if img_bytes:
                 boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
                 body = []
                 body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode('utf-8'))
                 body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{text_msg}\r\n'.encode('utf-8'))
-                body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="chart_16_9.png"\r\nContent-Type: image/png\r\n\r\n'.encode('utf-8'))
+                body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="candlestick_chart.png"\r\nContent-Type: image/png\r\n\r\n'.encode('utf-8'))
                 body.append(img_bytes)
                 body.append(f'\r\n--{boundary}--\r\n'.encode('utf-8'))
                 
@@ -71,9 +83,9 @@ def send_telegram_signal():
                     headers={'Content-Type': f'multipart/form-data; boundary={boundary}'}
                 )
                 with urllib.request.urlopen(tg_req) as tg_res:
-                    return jsonify({'success': True})
+                    return jsonify({'success': True, 'mode': 'photo'})
 
-        # Text Fallback
+        # Text Fallback Message if SS is disabled or failed
         payload = json.dumps({'chat_id': chat_id, 'text': text_msg}).encode('utf-8')
         tg_req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage",
@@ -81,9 +93,10 @@ def send_telegram_signal():
             headers={'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(tg_req) as tg_res:
-            return jsonify({'success': True})
+            return jsonify({'success': True, 'mode': 'text'})
 
     except Exception as e:
+        print("Telegram Send Error:", str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
