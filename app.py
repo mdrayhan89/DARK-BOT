@@ -20,36 +20,6 @@ def analyze():
         'reason': 'RSI Oversold + MACD Bullish Crossover'
     })
 
-# --- Live Candlestick Image Fetcher ---
-def get_candlestick_chart_bytes(pair_symbol):
-    # Standardizing pair symbol format (e.g. FX:EURUSD or FX:USDJPY)
-    clean_symbol = pair_symbol.replace('/', '').replace(' ', '').upper()
-    formatted_symbol = f"FX:{clean_symbol}"
-    
-    # Live TradingView Candlestick Generator URL
-    chart_url = f"https://s3.tradingview.com/snapshots/{clean_symbol[0].lower()}/{clean_symbol}.png"
-    
-    # Backup real-time candlestick API rendering
-    backup_url = f"https://api.chart-img.com/v2/tradingview/advanced-chart?symbol={formatted_symbol}&interval=1m&theme=dark&width=1280&height=720"
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-    }
-
-    for target_url in [backup_url, chart_url]:
-        try:
-            req = urllib.request.Request(target_url, headers=headers)
-            with urllib.request.urlopen(req, timeout=8) as response:
-                if response.status == 200:
-                    data = response.read()
-                    if len(data) > 1000: # Ensure valid image size
-                        return data
-        except Exception as err:
-            print(f"Fetch failed for {target_url}: {err}")
-            continue
-            
-    return None
-
 @app.route('/api/send_telegram_signal', methods=['POST'])
 def send_telegram_signal():
     try:
@@ -58,42 +28,44 @@ def send_telegram_signal():
         chat_id = data.get('chat_id')
         text_msg = data.get('text')
         with_ss = data.get('with_ss', False)
-        pair = data.get('pair', 'EUR/USD')
+        pair = data.get('pair', 'EUR/USD').replace('/', '').replace(' ', '').upper()
 
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-        # Try sending Photo with Caption if with_ss is True
+        # SS Toggle ON থাকলে সরাসরি Photo URL দিয়ে Telegram-এ পাঠানো হবে
         if with_ss:
-            img_bytes = get_candlestick_chart_bytes(pair)
+            # Live Candlestick Generator Image URL
+            chart_img_url = f"https://api.chart-img.com/v2/tradingview/advanced-chart?symbol=FX:{pair}&interval=1m&theme=dark&width=1280&height=720"
+            
+            photo_payload = json.dumps({
+                'chat_id': chat_id,
+                'photo': chart_img_url,
+                'caption': text_msg
+            }).encode('utf-8')
 
-            if img_bytes:
-                boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
-                body = []
-                body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode('utf-8'))
-                body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{text_msg}\r\n'.encode('utf-8'))
-                body.append(f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="candlestick_chart.png"\r\nContent-Type: image/png\r\n\r\n'.encode('utf-8'))
-                body.append(img_bytes)
-                body.append(f'\r\n--{boundary}--\r\n'.encode('utf-8'))
-                
-                payload = b''.join(body)
+            try:
                 tg_req = urllib.request.Request(
                     f"https://api.telegram.org/bot{token}/sendPhoto",
-                    data=payload,
-                    headers={'Content-Type': f'multipart/form-data; boundary={boundary}'}
+                    data=photo_payload,
+                    headers={'Content-Type': 'application/json'}
                 )
-                with urllib.request.urlopen(tg_req) as tg_res:
-                    return jsonify({'success': True, 'mode': 'photo'})
+                with urllib.request.urlopen(tg_req, timeout=10) as tg_res:
+                    res_data = json.loads(tg_res.read().decode())
+                    if res_data.get('ok'):
+                        return jsonify({'success': True, 'mode': 'photo_url'})
+            except Exception as photo_err:
+                print("Photo Send Failed, falling back to text:", str(photo_err))
 
-        # Text Fallback Message if SS is disabled or failed
+        # SS OFF থাকলে বা ছবি পাঠাতে ব্যর্থ হলে শুধু টেক্সট পাঠাবে
         payload = json.dumps({'chat_id': chat_id, 'text': text_msg}).encode('utf-8')
         tg_req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage",
             data=payload,
             headers={'Content-Type': 'application/json'}
         )
-        with urllib.request.urlopen(tg_req) as tg_res:
-            return jsonify({'success': True, 'mode': 'text'})
+        with urllib.request.urlopen(tg_req, timeout=10) as tg_res:
+            return jsonify({'success': True, 'mode': 'text_only'})
 
     except Exception as e:
         print("Telegram Send Error:", str(e))
