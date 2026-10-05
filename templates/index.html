@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Engine Bot</title>
-    <!-- HTML2Canvas Library for Screenshot Capture -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -46,9 +44,16 @@
             background: #0d0f12; color: #fff; border: 1px solid #333946;
             padding: 6px 12px; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;
         }
+        
+        /* 16:9 Aspect Ratio Chart Container */
         .chart-container {
-            width: 100%; height: 300px; border: 2px solid #523f21;
-            border-radius: 10px; overflow: hidden; background: #000; margin-bottom: 15px;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: 2px solid #523f21;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 15px;
         }
         .chart-container iframe { width: 100%; height: 100%; border: none; }
 
@@ -85,7 +90,6 @@
         .badge-loss { color: #ef4444; font-weight: bold; }
         .badge-mtg { color: #f59e0b; font-weight: bold; }
 
-        /* Settings CSS */
         .settings-card { background: #1a1e26; border: 1px solid #282d38; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; color: #e5b842; font-size: 12px; font-weight: bold; margin-bottom: 5px; }
@@ -140,7 +144,6 @@
             <div id="statusText" class="signal-result">READY FOR SIGNAL</div>
         </div>
 
-        <!-- Outcome Buttons (WIN, LOSS, MTG) -->
         <div id="outcomeBtns" class="outcome-group">
             <button class="btn btn-win" onclick="saveOutcome('WIN')">WIN</button>
             <button class="btn btn-mtg" onclick="saveOutcome('MTG')">MTG WIN</button>
@@ -241,6 +244,7 @@
                                   nextMinute.getMinutes().toString().padStart(2, '0');
 
             currentSignal = {
+                rawPair: pair,
                 pair: data.pair.replace('/', ''),
                 direction: data.direction.includes('CALL') ? 'BUY' : 'PUT',
                 targetTime: formattedTime,
@@ -270,7 +274,7 @@
         let saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
         const record = { ...currentSignal, outcome: result };
 
-        saved.push(record); // Add chronologically
+        saved.push(record);
         localStorage.setItem('signalHistory', JSON.stringify(saved));
 
         sendSingleResultAlert(record, saved);
@@ -324,6 +328,7 @@
         document.getElementById('ssToggle').checked = localStorage.getItem('tgSS') === 'true';
     }
 
+    // --- FIX FOR BLACK SCREENSHOT & 16:9 RATIO ---
     async function sendTelegramSignalAlert(sig) {
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
@@ -344,20 +349,28 @@
         textMsg += `🚀 CONT|Tar: @mdrayhan85`;
 
         if (withSS) {
-            const chartElem = document.getElementById('chartBox');
-            html2canvas(chartElem).then(canvas => {
-                canvas.toBlob(blob => {
-                    const formData = new FormData();
-                    formData.append('chat_id', chatId);
-                    formData.append('photo', blob, 'chart.png');
-                    formData.append('caption', textMsg);
+            try {
+                // Fetch 16:9 Chart image directly from Flask Backend Screenshot Endpoint
+                const imgRes = await fetch(`/api/screenshot?pair=${encodeURIComponent(sig.rawPair || sig.pair)}`);
+                const blob = await imgRes.blob();
 
-                    fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                }, 'image/png');
-            });
+                const formData = new FormData();
+                formData.append('chat_id', chatId);
+                formData.append('photo', blob, 'chart_16_9.png');
+                formData.append('caption', textMsg);
+
+                await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (err) {
+                // Fallback to text message if screenshot fails
+                fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: textMsg })
+                });
+            }
         } else {
             fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
                 method: 'POST',
@@ -402,7 +415,6 @@
         });
     }
 
-    // Exact Custom Font/Style Partial Result Sender (Matching your given text layout)
     async function sendTelegramPartialResult() {
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
@@ -419,14 +431,13 @@
         }
 
         const now = new Date();
-        const dateStr = now.toISOString().split('T')[0]; // Current date YYYY-MM-DD
+        const dateStr = now.toISOString().split('T')[0];
 
         let wins = saved.filter(x => x.outcome === 'WIN' || x.outcome === 'MTG').length;
         let losses = saved.filter(x => x.outcome === 'LOSS').length;
         let total = wins + losses;
         let winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
 
-        // Custom Partial Header
         let msg = `▰▰ DARK-𝙱𝙾𝚃 𝙿𝙰𝚁𝚃𝙸𝙰𝙻 ▰▰\n`;
         msg += `━━━━━━━・━━━━━━━\n`;
         msg += ` 🗓 - ${dateStr}\n`;
@@ -435,7 +446,6 @@
         msg += `🟢 𝚁𝙴𝙰𝙻 𝙼𝙰𝚁𝙺𝙴𝚃𝚂 𝙿𝙰𝚁𝚃𝙸𝙰𝙻 🟢\n`;
         msg += `━━━━━━━・━━━━━━━\n`;
 
-        // Signal List Construction
         saved.forEach(item => {
             let resText = "❌";
             if (item.outcome === "WIN") resText = "✅";
