@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Engine Bot</title>
+    <title>DARK Bot</title>
     <style>
         * {
             box-sizing: border-box;
@@ -199,6 +199,16 @@
 <script>
     let currentSignal = null;
 
+    // Load active signal from memory on startup
+    window.onload = function() {
+        const savedActive = localStorage.getItem('activeSignal');
+        if (savedActive) {
+            currentSignal = JSON.parse(savedActive);
+            restoreActiveUI();
+        }
+        renderHistory();
+    };
+
     function switchTab(tab) {
         document.getElementById('engineTab').classList.remove('active');
         document.getElementById('settingsTab').classList.remove('active');
@@ -218,15 +228,31 @@
     function changePair() {
         const pair = document.getElementById('pairSelect').value;
         document.getElementById('chartIframe').src = `https://fx-real-data.onrender.com/chart?pair=${encodeURIComponent(pair)}`;
-        resetSignal();
+        
+        // If an active signal is running, keep warning active even after pair change
+        if (currentSignal) {
+            restoreActiveUI();
+        }
+    }
+
+    function restoreActiveUI() {
+        const statusText = document.getElementById('statusText');
+        statusText.innerHTML = `
+            <div>ENTRY TIME: <b>${currentSignal.targetTime}</b> (1 MIN)</div>
+            <div>SIGNAL: <b>${currentSignal.direction}</b> [${currentSignal.pair}]</div>
+            <div style="font-size:11px; color:#ef4444; font-weight:bold; margin-top:2px;">ACTIVE SIGNAL IN PROGRESS! SUBMIT RESULT TO CONTINUE</div>
+        `;
+        statusText.style.color = "#00ff88";
+        document.getElementById('outcomeBtns').style.display = 'flex';
     }
 
     async function generateSignal() {
         const statusText = document.getElementById('statusText');
 
+        // LOCK SYSTEM: Block if active signal exists
         if (currentSignal !== null) {
-            statusText.innerText = "ALREADY A SIGNAL IS ACTIVE! PLEASE SUBMIT RESULT FIRST.";
-            statusText.style.color = "#ef4444";
+            alert(`Active signal running for ${currentSignal.pair}! Please select WIN/MTG/LOSS first.`);
+            statusText.innerHTML = `<span style="color:#ef4444">SUBMIT RESULT FOR ${currentSignal.pair} FIRST!</span>`;
             return;
         }
 
@@ -251,15 +277,12 @@
                 reason: data.reason
             };
 
-            statusText.innerHTML = `
-                <div>ENTRY TIME: <b>${formattedTime}</b> (1 MIN)</div>
-                <div>SIGNAL: <b>${currentSignal.direction}</b></div>
-                <div style="font-size:11px; color:#a0aec0;">[${data.reason}]</div>
-            `;
-            statusText.style.color = "#00ff88";
+            // Save active signal status
+            localStorage.setItem('activeSignal', JSON.stringify(currentSignal));
 
-            document.getElementById('outcomeBtns').style.display = 'flex';
+            restoreActiveUI();
 
+            // Send signal to Telegram
             sendTelegramSignalAlert(currentSignal);
 
         } catch (e) {
@@ -305,6 +328,7 @@
 
     function resetSignal() {
         currentSignal = null;
+        localStorage.removeItem('activeSignal');
         document.getElementById('statusText').innerText = "READY FOR SIGNAL";
         document.getElementById('statusText').style.color = "#00ff88";
         document.getElementById('outcomeBtns').style.display = 'none';
@@ -328,7 +352,7 @@
         document.getElementById('ssToggle').checked = localStorage.getItem('tgSS') === 'true';
     }
 
-    // --- FIX FOR BLACK SCREENSHOT & 16:9 RATIO ---
+    // TELEGRAM SIGNAL & SS BACKEND DISPATCHER
     async function sendTelegramSignalAlert(sig) {
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
@@ -348,36 +372,17 @@
         textMsg += `🔗 CREATE ACCOUNT QX\n`;
         textMsg += `🚀 CONT|Tar: @mdrayhan85`;
 
-        if (withSS) {
-            try {
-                // Fetch 16:9 Chart image directly from Flask Backend Screenshot Endpoint
-                const imgRes = await fetch(`/api/screenshot?pair=${encodeURIComponent(sig.rawPair || sig.pair)}`);
-                const blob = await imgRes.blob();
-
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append('photo', blob, 'chart_16_9.png');
-                formData.append('caption', textMsg);
-
-                await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData
-                });
-            } catch (err) {
-                // Fallback to text message if screenshot fails
-                fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: chatId, text: textMsg })
-                });
-            }
-        } else {
-            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: chatId, text: textMsg })
-            });
-        }
+        fetch('/api/send_telegram_signal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token,
+                chat_id: chatId,
+                text: textMsg,
+                with_ss: withSS,
+                pair: sig.rawPair || sig.pair
+            })
+        });
     }
 
     async function sendSingleResultAlert(item, allHistory) {
