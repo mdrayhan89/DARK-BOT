@@ -30,8 +30,10 @@
             border-radius: 16px;
             padding: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
         }
 
+        /* DEFAULT LIVE MODE HEADER */
         .header {
             text-align: center;
             margin-bottom: 20px;
@@ -50,7 +52,7 @@
             margin-top: 4px;
         }
 
-        /* সেটিংস টগল বক্স */
+        /* SETTINGS BOX */
         .settings-card {
             background: #0d1829;
             border: 1px solid #1e3a5f;
@@ -69,7 +71,7 @@
             letter-spacing: 1px;
         }
 
-        /* সুইচ ডিজাইন */
+        /* SWITCH STYLING */
         .switch {
             position: relative;
             display: inline-block;
@@ -118,7 +120,7 @@
             background-color: #050811;
         }
 
-        /* সাধারণ লাইভ সিগন্যাল প্যানেল */
+        /* FORM ELEMENTS */
         .panel-box {
             background: #0e1a2d;
             border: 1px solid #1c3554;
@@ -175,37 +177,38 @@
             box-shadow: 0 0 12px rgba(0, 242, 255, 0.4);
         }
 
-        /* DARK FS MODE প্যানেল (ব্ল্যাকআউট ইউআই) */
-        #darkFsPanel {
-            display: none;
+        /* DARK FS ENGINE MODE STYLING */
+        body.dark-fs-active {
+            background-color: #020408;
+        }
+
+        body.dark-fs-active .container {
             background: #04070d;
-            border: 1px solid #00f2ff33;
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+            border-color: #00f2ff44;
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.15);
         }
 
         .fs-header {
             text-align: center;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
 
         .fs-title {
             color: #00f2ff;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             letter-spacing: 2px;
-            text-shadow: 0 0 8px #00f2ff;
+            text-shadow: 0 0 10px #00f2ff;
         }
 
         .fs-subtitle {
             color: #00b8d4;
-            font-size: 10px;
+            font-size: 11px;
             letter-spacing: 1.5px;
             font-weight: bold;
             display: block;
-            margin-top: 4px;
+            margin-top: 5px;
         }
 
         .output-box {
@@ -225,10 +228,16 @@
 <body>
 
     <div class="container">
-        <!-- হেডার -->
-        <div class="header">
+        <!-- ১. LIVE ENGINE HEADER (ডিফল্ট) -->
+        <div id="liveHeader" class="header">
             <h1>DARK x AI BOT</h1>
             <p>High Accuracy Realtime & Future Signal Engine</p>
+        </div>
+
+        <!-- ২. DARK FS ENGINE HEADER (হাইড থাকবে) -->
+        <div id="fsHeader" class="fs-header" style="display: none;">
+            <div class="fs-title">DARK FUTURE AI</div>
+            <span class="fs-subtitle">POWERED BY DARK SECRET</span>
         </div>
 
         <!-- সেটিংস: DARK FS MODE টগল সুইচ -->
@@ -240,7 +249,7 @@
             </label>
         </div>
 
-        <!-- ১. সাধারণ লাইভ সিগন্যাল প্যানেল (ডিফল্ট দেখাবে) -->
+        <!-- ৩. LIVE SIGNAL ENGINE FORM (ডিফল্ট শো করবে) -->
         <div id="liveSignalPanel">
             <div class="panel-box">
                 <div class="form-group">
@@ -253,12 +262,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="telegramToken">বট টোকেন (Bot Token)</label>
+                    <label for="telegramToken">বট টোকেন (BOT TOKEN)</label>
                     <input type="text" id="telegramToken" placeholder="123456789:ABCdef...">
                 </div>
 
                 <div class="form-group">
-                    <label for="telegramChatId">চ্যাট আইডি (Chat ID)</label>
+                    <label for="telegramChatId">চ্যাট আইডি (CHAT ID)</label>
                     <input type="text" id="telegramChatId" placeholder="-100xxxxxxxxx">
                 </div>
 
@@ -266,64 +275,67 @@
             </div>
         </div>
 
-        <!-- ২. DARK FS MODE প্যানেল (OFF থাকলে হাইড থাকবে) -->
-        <div id="darkFsPanel">
-            <div class="fs-header">
-                <div class="fs-title">DARK FUTURE AI</div>
-                <span class="fs-subtitle">POWERED BY DARK SECRET</span>
-            </div>
+        <!-- ৪. DARK FS FUTURE SIGNAL ENGINE FORM (সুইচ অন করলে শো করবে) -->
+        <div id="darkFsPanel" style="display: none;">
+            <div class="panel-box" style="background: #050a14; border-color: #0f2744;">
+                <div class="form-group">
+                    <label style="color: #00f2ff;">Select Pairs</label>
+                    <select id="fsPairs" multiple style="height: 110px;">
+                        {% for pair in pairs %}
+                            <option value="{{ pair }}" selected>{{ pair }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label>Select Pairs</label>
-                <select id="fsPairs" multiple style="height: 110px;">
-                    {% for pair in pairs %}
-                        <option value="{{ pair }}" selected>{{ pair }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+                <div class="form-group">
+                    <label style="color: #00f2ff;">Start Time</label>
+                    <input type="time" id="fsStartTime" value="14:00">
+                </div>
 
-            <div class="form-group">
-                <label>Start Time</label>
-                <input type="time" id="fsStartTime" value="14:00">
-            </div>
+                <div class="form-group">
+                    <label style="color: #00f2ff;">End Time</label>
+                    <input type="time" id="fsEndTime" value="18:00">
+                </div>
 
-            <div class="form-group">
-                <label>End Time</label>
-                <input type="time" id="fsEndTime" value="18:00">
-            </div>
+                <div class="form-group">
+                    <label style="color: #00f2ff;">Accuracy</label>
+                    <select id="fsAccuracy">
+                        <option value="80">80%</option>
+                        <option value="85" selected>85%</option>
+                        <option value="90">90%</option>
+                        <option value="95">95% (High Trend Filter)</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label>Accuracy</label>
-                <select id="fsAccuracy">
-                    <option value="80">80%</option>
-                    <option value="85" selected>85%</option>
-                    <option value="90">90%</option>
-                    <option value="95">95% (High Trend Filter)</option>
-                </select>
+                <button class="btn-action" onclick="generateFutureSignals()">GENERATE FUTURE SIGNALS</button>
             </div>
-
-            <button class="btn-action" onclick="generateFutureSignals()">GENERATE FUTURE SIGNALS</button>
 
             <div id="fsLogs" class="output-box" style="display:none;"></div>
         </div>
     </div>
 
     <script>
-        // প্যানেল সুইচ করার ফংশন
         function toggleDarkFsMode(isOn) {
+            const liveHeader = document.getElementById('liveHeader');
+            const fsHeader = document.getElementById('fsHeader');
             const livePanel = document.getElementById('liveSignalPanel');
             const fsPanel = document.getElementById('darkFsPanel');
 
             if (isOn) {
+                document.body.classList.add('dark-fs-active');
+                liveHeader.style.display = 'none';
+                fsHeader.style.display = 'block';
                 livePanel.style.display = 'none';
                 fsPanel.style.display = 'block';
             } else {
+                document.body.classList.remove('dark-fs-active');
+                liveHeader.style.display = 'block';
+                fsHeader.style.display = 'none';
                 livePanel.style.display = 'block';
                 fsPanel.style.display = 'none';
             }
         }
 
-        // লাইভ সিগন্যাল রিকোয়েস্ট
         function sendLiveSignal() {
             const pair = document.getElementById('livePair').value;
             const token = document.getElementById('telegramToken').value;
@@ -358,7 +370,6 @@
             });
         }
 
-        // ফিউচার সিগন্যাল জেনারেটর রিকোয়েস্ট
         function generateFutureSignals() {
             const pairsSelect = document.getElementById('fsPairs');
             const selectedPairs = Array.from(pairsSelect.selectedOptions).map(o => o.value);
