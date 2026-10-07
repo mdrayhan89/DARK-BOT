@@ -93,7 +93,7 @@
         .settings-card { background: #1a1e26; border: 1px solid #282d38; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; color: #e5b842; font-size: 12px; font-weight: bold; margin-bottom: 5px; }
-        .form-group input[type="text"], .form-group input[type="password"] {
+        .form-group input[type="text"], .form-group input[type="password"], .form-group input[type="time"] {
             width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 8px; border-radius: 6px; outline: none;
         }
         .toggle-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -115,8 +115,37 @@
         .btn-save-settings { background: #10b981; color: #fff; }
         .btn-send-report { background: #3b82f6; color: #fff; margin-top: 10px; }
 
+        /* MULTI-PAIR GRID IN FS MODE */
+        .pairs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: #0d0f12;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #333946;
+            margin-bottom: 12px;
+        }
+        .pair-checkbox { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #ccc; }
+
+        .fs-output {
+            background: #0d0f12;
+            border: 1px solid #282d38;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #00ff88;
+            max-height: 220px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
         .bottom-nav { background: #1a1e26; border-radius: 20px; display: flex; justify-content: space-around; padding: 8px 5px; border: 1px solid #282d38; }
-        .nav-item { color: #6b7280; font-size: 11px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; width: 30%; padding: 6px 0; }
+        .nav-item { color: #6b7280; font-size: 11px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; width: 23%; padding: 6px 0; }
         .nav-item.active { background: #282e3a; color: #fff; border-radius: 12px; }
     </style>
 </head>
@@ -162,6 +191,38 @@
         </div>
     </div>
 
+    <!-- FS MODE TAB (FUTURE SIGNALS) -->
+    <div id="fsTab" class="tab-content">
+        <div class="settings-card">
+            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">📈 FUTURE SIGNAL ENGINE (95%+ WIN)</h3>
+            
+            <label style="color:#e5b842; font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">SELECT PAIRS:</label>
+            <div class="pairs-grid">
+                {% for pair in pairs %}
+                    <label class="pair-checkbox">
+                        <input type="checkbox" name="fs_pair" value="{{ pair }}" checked> {{ pair }}
+                    </label>
+                {% endfor %}
+            </div>
+
+            <div style="display:flex; gap:10px;" class="form-group">
+                <div style="flex:1;">
+                    <label>START TIME:</label>
+                    <input type="time" id="fsStartTime" value="14:00">
+                </div>
+                <div style="flex:1;">
+                    <label>END TIME:</label>
+                    <input type="time" id="fsEndTime" value="18:00">
+                </div>
+            </div>
+
+            <button class="btn-full btn-generate" onclick="generateFutureSignals()">🚀 GENERATE FUTURE SIGNALS</button>
+
+            <div id="fsOutputBox" class="fs-output" style="display:none;"></div>
+            <button id="btnSendFsTg" class="btn-full btn-send-report" style="display:none;" onclick="sendFsToTelegram()">📤 SEND TO TELEGRAM</button>
+        </div>
+    </div>
+
     <!-- SETTINGS TAB -->
     <div id="settingsTab" class="tab-content">
         <div class="settings-card">
@@ -191,6 +252,7 @@
     <!-- NAVIGATION BAR -->
     <div class="bottom-nav">
         <div id="navEngine" class="nav-item active" onclick="switchTab('engine')"><span>📊</span> Engine</div>
+        <div id="navFS" class="nav-item" onclick="switchTab('fs')"><span>📈</span> FS Mode</div>
         <div id="navSettings" class="nav-item" onclick="switchTab('settings')"><span>⚙️</span> Settings</div>
         <div id="navProfile" class="nav-item"><span>👤</span> Profile</div>
     </div>
@@ -198,8 +260,8 @@
 
 <script>
     let currentSignal = null;
+    let lastGeneratedFsText = "";
 
-    // Load active signal from memory on startup
     window.onload = function() {
         const savedActive = localStorage.getItem('activeSignal');
         if (savedActive) {
@@ -211,13 +273,19 @@
 
     function switchTab(tab) {
         document.getElementById('engineTab').classList.remove('active');
+        document.getElementById('fsTab').classList.remove('active');
         document.getElementById('settingsTab').classList.remove('active');
+        
         document.getElementById('navEngine').classList.remove('active');
+        document.getElementById('navFS').classList.remove('active');
         document.getElementById('navSettings').classList.remove('active');
 
         if(tab === 'engine') {
             document.getElementById('engineTab').classList.add('active');
             document.getElementById('navEngine').classList.add('active');
+        } else if(tab === 'fs') {
+            document.getElementById('fsTab').classList.add('active');
+            document.getElementById('navFS').classList.add('active');
         } else if(tab === 'settings') {
             document.getElementById('settingsTab').classList.add('active');
             document.getElementById('navSettings').classList.add('active');
@@ -228,8 +296,6 @@
     function changePair() {
         const pair = document.getElementById('pairSelect').value;
         document.getElementById('chartIframe').src = `https://fx-real-data.onrender.com/chart?pair=${encodeURIComponent(pair)}`;
-        
-        // If an active signal is running, keep warning active even after pair change
         if (currentSignal) {
             restoreActiveUI();
         }
@@ -249,7 +315,6 @@
     async function generateSignal() {
         const statusText = document.getElementById('statusText');
 
-        // LOCK SYSTEM: Block if active signal exists
         if (currentSignal !== null) {
             alert(`Active signal running for ${currentSignal.pair}! Please select WIN/MTG/LOSS first.`);
             statusText.innerHTML = `<span style="color:#ef4444">SUBMIT RESULT FOR ${currentSignal.pair} FIRST!</span>`;
@@ -277,18 +342,86 @@
                 reason: data.reason
             };
 
-            // Save active signal status
             localStorage.setItem('activeSignal', JSON.stringify(currentSignal));
-
             restoreActiveUI();
-
-            // Send signal to Telegram
             sendTelegramSignalAlert(currentSignal);
 
         } catch (e) {
             statusText.innerText = "ERROR CALCULATING TECHNICAL DATA";
             statusText.style.color = "#ef4444";
         }
+    }
+
+    async function generateFutureSignals() {
+        const checkedPairs = Array.from(document.querySelectorAll('input[name="fs_pair"]:checked')).map(cb => cb.value);
+        const startTime = document.getElementById('fsStartTime').value;
+        const endTime = document.getElementById('fsEndTime').value;
+
+        if (checkedPairs.length === 0) {
+            alert("Please select at least one pair!");
+            return;
+        }
+
+        const outBox = document.getElementById('fsOutputBox');
+        outBox.style.display = 'block';
+        outBox.innerText = "🔍 BACKTESTING HISTORICAL DATA & TRENDS (95%+ ACCURACY)...";
+
+        try {
+            const res = await fetch('/api/generate_future_signals', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    pairs: checkedPairs,
+                    start_time: startTime,
+                    end_time: endTime,
+                    accuracy: 95
+                })
+            });
+
+            const data = await res.json();
+            if (data.success && data.signals.length > 0) {
+                let msg = `❖====【 FUTURE SIGNALS 】====❖\n`;
+                msg += `⏰ RANGE: ${startTime} - ${endTime}\n`;
+                msg += `📊 ACCURACY: 95%+ (1-STEP MTG)\n`;
+                msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+
+                data.signals.forEach(s => {
+                    let dirIcon = s.direction === 'CALL' || s.direction === 'BUY' ? '🟢 CALL' : '🔴 PUT';
+                    msg += `⏰ ${s.time} | 💎 ${s.pair} | ${dirIcon}\n`;
+                });
+
+                msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+                msg += `🚀 USE 1-STEP MTG FOR 95%+ WIN RATE\n`;
+                msg += `🕊 PLATFORM: DARK-BOT`;
+
+                lastGeneratedFsText = msg;
+                outBox.innerText = msg;
+                document.getElementById('btnSendFsTg').style.display = 'block';
+            } else {
+                outBox.innerText = "No high-accuracy (95%+) signals matched the backtest criteria for this timeframe.";
+            }
+
+        } catch (e) {
+            outBox.innerText = "Error generating future signals!";
+        }
+    }
+
+    async function sendFsToTelegram() {
+        const token = localStorage.getItem('tgToken');
+        const chatId = localStorage.getItem('tgChatId');
+
+        if (!token || !chatId) {
+            alert("Please set Bot Token and Chat ID in Settings!");
+            return;
+        }
+
+        if (!lastGeneratedFsText) return;
+
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: lastGeneratedFsText })
+        }).then(() => alert("Future Signals Sent to Telegram Successfully!"));
     }
 
     function saveOutcome(result) {
@@ -301,7 +434,6 @@
         localStorage.setItem('signalHistory', JSON.stringify(saved));
 
         sendSingleResultAlert(record, saved);
-
         renderHistory();
         resetSignal();
     }
@@ -352,7 +484,6 @@
         document.getElementById('ssToggle').checked = localStorage.getItem('tgSS') === 'true';
     }
 
-    // TELEGRAM SIGNAL & SS BACKEND DISPATCHER
     async function sendTelegramSignalAlert(sig) {
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
