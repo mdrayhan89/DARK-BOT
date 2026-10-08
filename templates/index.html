@@ -45,7 +45,6 @@
             padding: 6px 12px; border-radius: 6px; font-weight: bold; outline: none; cursor: pointer;
         }
         
-        /* 16:9 Aspect Ratio Chart Container */
         .chart-container {
             width: 100%;
             aspect-ratio: 16 / 9;
@@ -115,7 +114,6 @@
         .btn-save-settings { background: #10b981; color: #fff; }
         .btn-send-report { background: #3b82f6; color: #fff; margin-top: 10px; }
 
-        /* MULTI-PAIR GRID IN FS MODE */
         .pairs-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -194,7 +192,7 @@
     <!-- FS MODE TAB (FUTURE SIGNALS) -->
     <div id="fsTab" class="tab-content">
         <div class="settings-card">
-            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">📈 FUTURE SIGNAL ENGINE (95%+ WIN)</h3>
+            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">📈 FUTURE SIGNAL ENGINE (1 HOUR LIVE MOMENTUM)</h3>
             
             <label style="color:#e5b842; font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">SELECT PAIRS:</label>
             <div class="pairs-grid">
@@ -207,16 +205,16 @@
 
             <div style="display:flex; gap:10px;" class="form-group">
                 <div style="flex:1;">
-                    <label>START TIME:</label>
-                    <input type="time" id="fsStartTime" value="14:00">
+                    <label>START TIME (OPTIONAL):</label>
+                    <input type="time" id="fsStartTime">
                 </div>
                 <div style="flex:1;">
-                    <label>END TIME:</label>
-                    <input type="time" id="fsEndTime" value="18:00">
+                    <label>END TIME (OPTIONAL):</label>
+                    <input type="time" id="fsEndTime">
                 </div>
             </div>
 
-            <button class="btn-full btn-generate" onclick="generateFutureSignals()">🚀 GENERATE FUTURE SIGNALS</button>
+            <button class="btn-full btn-generate" onclick="generateFutureSignals()">🚀 GENERATE 1-HOUR FUTURE SIGNALS</button>
 
             <div id="fsOutputBox" class="fs-output" style="display:none;"></div>
             <button id="btnSendFsTg" class="btn-full btn-send-report" style="display:none;" onclick="sendFsToTelegram()">📤 SEND TO TELEGRAM</button>
@@ -269,7 +267,19 @@
             restoreActiveUI();
         }
         renderHistory();
+        initLiveTimeInputs();
     };
+
+    function initLiveTimeInputs() {
+        const now = new Date();
+        const startStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        
+        const endDt = new Date(now.getTime() + 60*60*1000);
+        const endStr = endDt.getHours().toString().padStart(2, '0') + ':' + endDt.getMinutes().toString().padStart(2, '0');
+
+        document.getElementById('fsStartTime').value = startStr;
+        document.getElementById('fsEndTime').value = endStr;
+    }
 
     function switchTab(tab) {
         document.getElementById('engineTab').classList.remove('active');
@@ -364,7 +374,7 @@
 
         const outBox = document.getElementById('fsOutputBox');
         outBox.style.display = 'block';
-        outBox.innerText = "🔍 BACKTESTING HISTORICAL DATA & TRENDS (95%+ ACCURACY)...";
+        outBox.innerText = "🔍 ANALYZING LIVE MOMENTUM & TRENDS FOR NEXT 1 HOUR...";
 
         try {
             const res = await fetch('/api/generate_future_signals', {
@@ -373,15 +383,14 @@
                 body: JSON.stringify({
                     pairs: checkedPairs,
                     start_time: startTime,
-                    end_time: endTime,
-                    accuracy: 95
+                    end_time: endTime
                 })
             });
 
             const data = await res.json();
             if (data.success && data.signals.length > 0) {
-                let msg = `❖====【 FUTURE SIGNALS 】====❖\n`;
-                msg += `⏰ RANGE: ${startTime} - ${endTime}\n`;
+                let msg = `❖====【 FUTURE SIGNALS (LIVE MOMENTUM) 】====❖\n`;
+                msg += `⏰ RANGE: ${data.start_time} - ${data.end_time}\n`;
                 msg += `📊 ACCURACY: 95%+ (1-STEP MTG)\n`;
                 msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
 
@@ -398,11 +407,11 @@
                 outBox.innerText = msg;
                 document.getElementById('btnSendFsTg').style.display = 'block';
             } else {
-                outBox.innerText = "No high-accuracy (95%+) signals matched the backtest criteria for this timeframe.";
+                outBox.innerText = "Error generating future signals. Please try again.";
             }
 
         } catch (e) {
-            outBox.innerText = "Error generating future signals!";
+            outBox.innerText = "Error connecting to server!";
         }
     }
 
