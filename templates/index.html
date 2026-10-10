@@ -113,6 +113,7 @@
         .btn-full { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
         .btn-save-settings { background: #10b981; color: #fff; }
         .btn-send-report { background: #3b82f6; color: #fff; margin-top: 10px; }
+        .btn-logout { background: #dc2626; color: #fff; margin-top: 15px; }
 
         .pairs-grid {
             display: grid;
@@ -141,6 +142,20 @@
             white-space: pre-wrap;
             margin-top: 10px;
         }
+
+        .profile-info-box {
+            background: #0d0f12;
+            border: 1px solid #333946;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .profile-row { display: flex; justify-content: space-between; border-bottom: 1px solid #232730; padding-bottom: 6px; }
+        .profile-label { color: #8a94a6; font-weight: bold; }
+        .profile-val { color: #00ff88; font-weight: bold; }
 
         .bottom-nav { background: #1a1e26; border-radius: 20px; display: flex; justify-content: space-around; padding: 8px 5px; border: 1px solid #282d38; }
         .nav-item { color: #6b7280; font-size: 11px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; width: 23%; padding: 6px 0; }
@@ -189,10 +204,10 @@
         </div>
     </div>
 
-    <!-- FS MODE TAB (FUTURE SIGNALS) -->
+    <!-- FS MODE TAB -->
     <div id="fsTab" class="tab-content">
         <div class="settings-card">
-            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">📈 FUTURE SIGNAL ENGINE (1 HOUR LIVE MOMENTUM)</h3>
+            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">📈 FUTURE SIGNAL ENGINE</h3>
             
             <label style="color:#e5b842; font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">SELECT PAIRS:</label>
             <div class="pairs-grid">
@@ -205,16 +220,16 @@
 
             <div style="display:flex; gap:10px;" class="form-group">
                 <div style="flex:1;">
-                    <label>START TIME (OPTIONAL):</label>
+                    <label>START TIME:</label>
                     <input type="time" id="fsStartTime">
                 </div>
                 <div style="flex:1;">
-                    <label>END TIME (OPTIONAL):</label>
+                    <label>END TIME:</label>
                     <input type="time" id="fsEndTime">
                 </div>
             </div>
 
-            <button class="btn-full btn-generate" onclick="generateFutureSignals()">🚀 GENERATE 1-HOUR FUTURE SIGNALS</button>
+            <button class="btn-full btn-generate" onclick="generateFutureSignals()">🚀 GENERATE FUTURE SIGNALS</button>
 
             <div id="fsOutputBox" class="fs-output" style="display:none;"></div>
             <button id="btnSendFsTg" class="btn-full btn-send-report" style="display:none;" onclick="sendFsToTelegram()">📤 SEND TO TELEGRAM</button>
@@ -247,12 +262,30 @@
         </div>
     </div>
 
+    <!-- PROFILE TAB -->
+    <div id="profileTab" class="tab-content">
+        <div class="settings-card">
+            <h3 style="color:#e5b842; font-size:14px; margin-bottom:12px;">👤 USER LICENSE PROFILE</h3>
+            
+            <div class="profile-info-box" id="profileInfoBox">
+                <div class="profile-row"><span class="profile-label">NAME:</span> <span class="profile-val" id="profName">Loading...</span></div>
+                <div class="profile-row"><span class="profile-label">KEY:</span> <span class="profile-val" id="profKey">Loading...</span></div>
+                <div class="profile-row"><span class="profile-label">STATUS:</span> <span class="profile-val" style="color:#10b981;">ACTIVE VIP</span></div>
+                <div class="profile-row"><span class="profile-label">EXPIRES AT:</span> <span class="profile-val" id="profExpiry">Loading...</span></div>
+                <div class="profile-row"><span class="profile-label">REMAINING DAYS:</span> <span class="profile-val" id="profDays" style="color:#f59e0b;">Loading...</span></div>
+                <div class="profile-row"><span class="profile-label">DEVICE LIMIT:</span> <span class="profile-val" id="profDevices">Loading...</span></div>
+            </div>
+
+            <button class="btn-full btn-logout" onclick="window.location.href='/logout'">🚪 LOGOUT / SWITCH KEY</button>
+        </div>
+    </div>
+
     <!-- NAVIGATION BAR -->
     <div class="bottom-nav">
         <div id="navEngine" class="nav-item active" onclick="switchTab('engine')"><span>📊</span> Engine</div>
         <div id="navFS" class="nav-item" onclick="switchTab('fs')"><span>📈</span> FS Mode</div>
         <div id="navSettings" class="nav-item" onclick="switchTab('settings')"><span>⚙️</span> Settings</div>
-        <div id="navProfile" class="nav-item"><span>👤</span> Profile</div>
+        <div id="navProfile" class="nav-item" onclick="switchTab('profile')"><span>👤</span> Profile</div>
     </div>
 </div>
 
@@ -268,12 +301,12 @@
         }
         renderHistory();
         initLiveTimeInputs();
+        loadProfileData();
     };
 
     function initLiveTimeInputs() {
         const now = new Date();
         const startStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        
         const endDt = new Date(now.getTime() + 60*60*1000);
         const endStr = endDt.getHours().toString().padStart(2, '0') + ':' + endDt.getMinutes().toString().padStart(2, '0');
 
@@ -285,10 +318,12 @@
         document.getElementById('engineTab').classList.remove('active');
         document.getElementById('fsTab').classList.remove('active');
         document.getElementById('settingsTab').classList.remove('active');
+        document.getElementById('profileTab').classList.remove('active');
         
         document.getElementById('navEngine').classList.remove('active');
         document.getElementById('navFS').classList.remove('active');
         document.getElementById('navSettings').classList.remove('active');
+        document.getElementById('navProfile').classList.remove('active');
 
         if(tab === 'engine') {
             document.getElementById('engineTab').classList.add('active');
@@ -300,6 +335,26 @@
             document.getElementById('settingsTab').classList.add('active');
             document.getElementById('navSettings').classList.add('active');
             loadSettings();
+        } else if(tab === 'profile') {
+            document.getElementById('profileTab').classList.add('active');
+            document.getElementById('navProfile').classList.add('active');
+            loadProfileData();
+        }
+    }
+
+    async function loadProfileData() {
+        try {
+            const res = await fetch('/api/profile_info');
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('profName').innerText = data.name;
+                document.getElementById('profKey').innerText = data.key;
+                document.getElementById('profExpiry').innerText = data.expires_at;
+                document.getElementById('profDays').innerText = data.remaining_days + " Days Left";
+                document.getElementById('profDevices').innerText = `${data.active_devices_count} / ${data.max_devices} Device(s)`;
+            }
+        } catch (e) {
+            console.error("Profile load error", e);
         }
     }
 
@@ -324,10 +379,8 @@
 
     async function generateSignal() {
         const statusText = document.getElementById('statusText');
-
         if (currentSignal !== null) {
             alert(`Active signal running for ${currentSignal.pair}! Please select WIN/MTG/LOSS first.`);
-            statusText.innerHTML = `<span style="color:#ef4444">SUBMIT RESULT FOR ${currentSignal.pair} FIRST!</span>`;
             return;
         }
 
@@ -380,11 +433,7 @@
             const res = await fetch('/api/generate_future_signals', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    pairs: checkedPairs,
-                    start_time: startTime,
-                    end_time: endTime
-                })
+                body: JSON.stringify({ pairs: checkedPairs, start_time: startTime, end_time: endTime })
             });
 
             const data = await res.json();
@@ -409,7 +458,6 @@
             } else {
                 outBox.innerText = "Error generating future signals. Please try again.";
             }
-
         } catch (e) {
             outBox.innerText = "Error connecting to server!";
         }
@@ -418,15 +466,13 @@
     async function sendFsToTelegram() {
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
-
         if (!token || !chatId) {
             alert("Please set Bot Token and Chat ID in Settings!");
             return;
         }
-
         if (!lastGeneratedFsText) return;
 
-        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        fetch(`https://api.telegram.org/bot{token}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text: lastGeneratedFsText })
@@ -435,13 +481,10 @@
 
     function saveOutcome(result) {
         if (!currentSignal) return;
-
         let saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
         const record = { ...currentSignal, outcome: result };
-
         saved.push(record);
         localStorage.setItem('signalHistory', JSON.stringify(saved));
-
         sendSingleResultAlert(record, saved);
         renderHistory();
         resetSignal();
@@ -450,7 +493,6 @@
     function renderHistory() {
         const historyList = document.getElementById('historyList');
         const saved = JSON.parse(localStorage.getItem('signalHistory')) || [];
-        
         historyList.innerHTML = '';
         saved.slice().reverse().forEach(item => {
             let badgeClass = "badge-win";
@@ -497,11 +539,9 @@
         const token = localStorage.getItem('tgToken');
         const chatId = localStorage.getItem('tgChatId');
         const withSS = localStorage.getItem('tgSS') === 'true';
-
         if (!token || !chatId) return;
 
         const dirIcon = sig.direction === 'BUY' ? '🟢' : '🔴';
-
         let textMsg = `====【 DARK x AI BOT 】====\n\n`;
         textMsg += `┏━━━━━━━━━━━━━━━━━━━\n`;
         textMsg += `💎 »» ${sig.pair}\n`;
@@ -515,13 +555,7 @@
         fetch('/api/send_telegram_signal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token: token,
-                chat_id: chatId,
-                text: textMsg,
-                with_ss: withSS,
-                pair: sig.rawPair || sig.pair
-            })
+            body: JSON.stringify({ token, chat_id: chatId, text: textMsg, with_ss: withSS, pair: sig.rawPair || sig.pair })
         });
     }
 
@@ -535,12 +569,7 @@
         let total = wins + losses;
         let winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
 
-        let statusBadge = "✅✅✅ SURE SHOT ✅✅✅";
-        if (item.outcome === 'MTG') {
-            statusBadge = "🟡🟡🟡 1st MTG WIN 🟡🟡🟡";
-        } else if (item.outcome === 'LOSS') {
-            statusBadge = "❌❌❌ AVOID / LOSS ❌❌❌";
-        }
+        let statusBadge = item.outcome === 'MTG' ? "🟡🟡🟡 1st MTG WIN 🟡🟡🟡" : (item.outcome === 'LOSS' ? "❌❌❌ AVOID / LOSS ❌❌❌" : "✅✅✅ SURE SHOT ✅✅✅");
 
         let report = `❖=== R|E|S|U|L|T ===❖\n\n`;
         report += `┏━━━━━━━━━━━━━━━━━━━\n`;
@@ -569,7 +598,6 @@
             alert("Please save Telegram Token and Chat ID first!");
             return;
         }
-
         if (saved.length === 0) {
             alert("No saved history found!");
             return;
@@ -577,7 +605,6 @@
 
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
-
         let wins = saved.filter(x => x.outcome === 'WIN' || x.outcome === 'MTG').length;
         let losses = saved.filter(x => x.outcome === 'LOSS').length;
         let total = wins + losses;
@@ -587,15 +614,11 @@
         msg += `━━━━━━━・━━━━━━━\n`;
         msg += ` 🗓 - ${dateStr}\n`;
         msg += `━━━━━━━・━━━━━━━\n`;
-        msg += `━━━━━━━・━━━━━━━\n`;
         msg += `🟢 𝚁𝙴𝙰𝙻 𝙼𝙰𝚁𝙺𝙴𝚃𝚂 𝙿𝙰𝚁𝚃𝙸𝙰𝙻 🟢\n`;
         msg += `━━━━━━━・━━━━━━━\n`;
 
         saved.forEach(item => {
-            let resText = "❌";
-            if (item.outcome === "WIN") resText = "✅";
-            if (item.outcome === "MTG") resText = "✅¹";
-
+            let resText = item.outcome === "WIN" ? "✅" : (item.outcome === "MTG" ? "✅¹" : "❌");
             msg += `❒ 𝙼𝟷 ${item.pair} - ${item.targetTime} - ${item.direction} ${resText}\n`;
         });
 
@@ -605,7 +628,7 @@
         msg += `🕊 𝙿𝙻𝙰𝚃𝙵𝙾𝚁𝙼 - DARK-𝙱𝙾𝚃\n`;
         msg += `🚨 𝙿𝙰𝚁𝚃𝙸𝙰𝙻 𝚂𝙴𝙽𝚃 𝚂𝚄𝙲𝙲𝙴𝚂𝚂𝙵𝚄𝙻𝙻𝚈`;
 
-        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        fetch(`https://api.telegram.org/bot{token}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text: msg })
