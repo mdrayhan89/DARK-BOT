@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - DARK Bot</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #0d0f12; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+        .card { width: 100%; max-width: 380px; background: #14171d; border-radius: 12px; padding: 25px; border: 1px solid #232730; }
+        h2 { color: #e5b842; font-size: 16px; margin-bottom: 20px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; color: #8a94a6; font-size: 12px; font-weight: bold; margin-bottom: 5px; }
+        input { width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 10px; border-radius: 6px; outline: none; }
+        .btn { width: 100%; padding: 12px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .error { color: #ef4444; font-size: 12px; margin-bottom: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🔑 ADMIN PANEL LOGIN</h2>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="POST">
+        <div class="form-group">
+            <label>ADMIN PASSWORD:</label>
+            <input type="password" name="password" placeholder="Enter Admin Password" required>
+        </div>
+        <button type="submit" class="btn">Login to Admin</button>
+    </form>
+</div>
+</body>
+</html>
