@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - DARK Bot</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #0d0f12; color: #fff; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #14171d; border: 1px solid #232730; border-radius: 12px; padding: 20px; }
+        h2 { color: #e5b842; margin-bottom: 15px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+        .section { background: #1a1e26; border: 1px solid #282d38; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px; }
+        label { display: block; color: #8a94a6; font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+        input { width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 8px; border-radius: 6px; outline: none; }
+        .btn { padding: 10px 15px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #282d38; }
+        th { color: #e5b842; background: #111318; }
+        .logout-btn { background: #374151; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>
+        <span>🛡️ ADMIN PANEL (KEY MANAGER)</span>
+        <a href="/admin/logout" class="logout-btn">Logout</a>
+    </h2>
+
+    <div class="section">
+        <h3 style="color:#e5b842; font-size:14px; margin-bottom:10px;">Create New License Key</h3>
+        <div class="form-row">
+            <div>
+                <label>USER NAME (HOLDER):</label>
+                <input type="text" id="keyName" placeholder="Client Name">
+            </div>
+            <div>
+                <label>VALIDITY (DAYS):</label>
+                <input type="number" id="keyDays" value="30">
+            </div>
+            <div>
+                <label>DEVICE LIMIT (1 = Single, 2+ = Multi):</label>
+                <input type="number" id="keyDevices" value="1">
+            </div>
+            <div>
+                <label>CUSTOM KEY (OPTIONAL):</label>
+                <input type="text" id="customKey" placeholder="Auto-generated if empty">
+            </div>
+        </div>
+        <button class="btn" onclick="createKey()">Generate Key</button>
+    </div>
+
+    <div class="section">
+        <h3 style="color:#e5b842; font-size:14px; margin-bottom:10px;">Existing Keys List</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Name</th>
+                    <th>Expires</th>
+                    <th>Devices</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="keyListBody">
+                {% for k, v in licenses.items() %}
+                <tr>
+                    <td><code>{{ k }}</code></td>
+                    <td>{{ v.name }}</td>
+                    <td>{{ v.expires_at }}</td>
+                    <td>{{ v.devices | length }} / {{ v.max_devices }}</td>
+                    <td><button class="btn btn-danger" onclick="deleteKey('{{ k }}')">Delete</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function createKey() {
+        const name = document.getElementById('keyName').value;
+        const days = document.getElementById('keyDays').value;
+        const max_devices = document.getElementById('keyDevices').value;
+        const custom_key = document.getElementById('customKey').value;
+
+        if(!name) { alert("Please enter user name!"); return; }
+
+        const res = await fetch('/api/admin/create_key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, days, max_devices, custom_key})
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert("License Created Successfully! Key: " + data.key);
+            location.reload();
+        } else {
+            alert("Error creating key!");
+        }
+    }
+
+    async function deleteKey(key) {
+        if(!confirm("Are you sure you want to delete this key?")) return;
+        const res = await fetch('/api/admin/delete_key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key})
+        });
+        const data = await res.json();
+        if(data.success) {
+            location.reload();
+        } else {
+            alert("Error deleting key!");
+        }
+    }
+</script>
+</body>
+</html>
