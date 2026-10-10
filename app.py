@@ -23,8 +23,11 @@ def load_licenses():
     return {}
 
 def save_licenses(data):
-    with open(LICENSE_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+    try:
+        with open(LICENSE_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print("Error saving licenses:", e)
 
 # Complete Trading Pairs List
 PAIRS = [
@@ -117,10 +120,10 @@ def analyze_pair_history(pair, seed_offset=0):
                 else: put_score += 20
 
                 if buyer_p > seller_p: call_score += 15
-                else: put_score += 15
+                else: seller_p += 15
 
                 if pattern_bias == 'CALL': call_score += 10
-                elif pattern_bias == 'PUT': call_score += 10
+                elif pattern_bias == 'PUT': put_score += 10
 
                 if call_score > put_score:
                     direction = 'CALL'
@@ -156,27 +159,35 @@ def auth_page():
         licenses = load_licenses()
         if key in licenses:
             lic = licenses[key]
-            # Check expiry
-            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
-            if datetime.now() > exp_date:
-                error = "License Key has expired!"
-            else:
-                devices = lic.get('devices', [])
-                max_dev = lic.get('max_devices', 1)
-                
-                if device_id in devices:
-                    session['license_key'] = key
-                    session['device_id'] = device_id
-                    return redirect(url_for('index'))
-                elif len(devices) < max_dev:
+            if not lic.get('is_unlimited') and lic.get('days') != 99999:
+                try:
+                    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+                    if datetime.now() > exp_date:
+                        return render_template('auth.html', error="License Key has expired!")
+                except Exception:
+                    pass
+            
+            devices = lic.get('devices', [])
+            max_dev = lic.get('max_devices', 1)
+            
+            # If device is already registered for this key, allow login
+            if device_id in devices:
+                session['license_key'] = key
+                session['device_id'] = device_id
+                return redirect(url_for('index'))
+            
+            # If slot is available, bind this new device permanently
+            elif len(devices) < max_dev:
+                if device_id not in devices:
                     devices.append(device_id)
-                    lic['devices'] = devices
-                    save_licenses(licenses)
-                    session['license_key'] = key
-                    session['device_id'] = device_id
-                    return redirect(url_for('index'))
-                else:
-                    error = f"Device limit reached! This key is already bound to {max_dev} device(s)."
+                lic['devices'] = devices
+                save_licenses(licenses)
+                session['license_key'] = key
+                session['device_id'] = device_id
+                return redirect(url_for('index'))
+            else:
+                # Device limit reached & trying from a new device -> Strict Error Message
+                error = "Limited access contact owner"
         else:
             error = "Invalid License Key!"
             
@@ -201,10 +212,14 @@ def index():
         return redirect(url_for('auth_page'))
         
     lic = licenses[lic_key]
-    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
-    if datetime.now() > exp_date:
-        session.pop('license_key', None)
-        return redirect(url_for('auth_page'))
+    if not lic.get('is_unlimited') and lic.get('days') != 99999:
+        try:
+            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+            if datetime.now() > exp_date:
+                session.pop('license_key', None)
+                return redirect(url_for('auth_page'))
+        except Exception:
+            pass
 
     return render_template('index.html', pairs=PAIRS)
 
@@ -220,17 +235,26 @@ def profile_info():
         return jsonify({'success': False, 'error': 'Invalid License'}), 401
         
     lic = licenses[lic_key]
-    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
-    remaining_days = (exp_date - datetime.now()).days
-    if remaining_days < 0: remaining_days = 0
+    
+    if lic.get('is_unlimited') or lic.get('days') == 99999:
+        remaining_days_text = "Unlimited / Lifetime"
+        expires_at_text = "Lifetime Access"
+    else:
+        try:
+            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+            rem = (exp_date - datetime.now()).days
+            remaining_days_text = f"{max(0, rem)} Days Left"
+        except Exception:
+            remaining_days_text = "Active"
+        expires_at_text = lic.get('expires_at')
 
     return jsonify({
         'success': True,
         'name': lic.get('name', 'VIP Member'),
         'key': lic_key,
         'created_at': lic.get('created_at'),
-        'expires_at': lic.get('expires_at'),
-        'remaining_days': remaining_days,
+        'expires_at': expires_at_text,
+        'remaining_days': remaining_days_text,
         'max_devices': lic.get('max_devices', 1),
         'active_devices_count': len(lic.get('devices', []))
     })
@@ -272,7 +296,7 @@ def api_create_key():
         
     data = request.json or {}
     name = data.get('name', 'User').strip()
-    days = int(data.get('days', 30))
+    is_unlimited = data.get('is_unlimited', False)
     max_devices = int(data.get('max_devices', 1))
     custom_key = data.get('custom_key', '').strip()
 
@@ -280,12 +304,19 @@ def api_create_key():
         custom_key = f"DARK-{random.randint(1000,9999)}-{random.randint(1000,9999)}"
 
     created_at = datetime.now().strftime('%Y-%m-%d')
-    expires_at = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
+
+    if is_unlimited:
+        days = 99999
+        expires_at = "2099-12-31"
+    else:
+        days = int(data.get('days', 30))
+        expires_at = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
 
     licenses = load_licenses()
     licenses[custom_key] = {
         'name': name,
         'days': days,
+        'is_unlimited': is_unlimited,
         'created_at': created_at,
         'expires_at': expires_at,
         'max_devices': max_devices,
