@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import requests
 import json
+import os
 import traceback
 import urllib.parse
 import threading
@@ -8,6 +9,22 @@ import random
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
+app.secret_key = 'dark_bot_secure_secret_key_2026'
+
+LICENSE_FILE = 'licenses.json'
+
+def load_licenses():
+    if os.path.exists(LICENSE_FILE):
+        try:
+            with open(LICENSE_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_licenses(data):
+    with open(LICENSE_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
 
 # Complete Trading Pairs List
 PAIRS = [
@@ -17,9 +34,6 @@ PAIRS = [
 ]
 
 def analyze_candlestick_and_pressure(candles):
-    """
-    Calculates Candlestick Patterns, Buyer/Seller Pressure & Wick Ratios
-    """
     if len(candles) < 3:
         return 'NEUTRAL', 50, 50, 'No Pattern'
 
@@ -61,9 +75,6 @@ def analyze_candlestick_and_pressure(candles):
 
 
 def analyze_pair_history(pair, seed_offset=0):
-    """
-    Real Technical Analysis using Live Candles, Dynamic Indicators & Market Momentum
-    """
     try:
         url = f"https://fx-real-data.onrender.com/api/candles?pair={urllib.parse.quote(pair)}"
         res = requests.get(url, timeout=5)
@@ -76,13 +87,10 @@ def analyze_pair_history(pair, seed_offset=0):
                 closes = [float(c['close']) for c in candles]
                 highs = [float(c['high']) for c in candles]
                 lows = [float(c['low']) for c in candles]
-                current_price = closes[-1]
                 
-                # Multi-EMA Calculation
                 ema_fast = sum(closes[-5:]) / 5
                 ema_mid = sum(closes[-15:]) / 15
                 
-                # RSI 14 Calculation
                 gains = [max(0, closes[i] - closes[i-1]) for i in range(1, len(closes))]
                 losses = [max(0, closes[i-1] - closes[i]) for i in range(1, len(closes))]
                 avg_gain = sum(gains[-14:]) / 14 if sum(gains[-14:]) > 0 else 0.0001
@@ -90,7 +98,6 @@ def analyze_pair_history(pair, seed_offset=0):
                 rs = avg_gain / avg_loss
                 rsi = 100 - (100 / (1 + rs))
 
-                # MACD Line
                 ema12 = sum(closes[-12:]) / 12 if len(closes) >= 12 else sum(closes) / len(closes)
                 ema26 = sum(closes[-20:]) / 20 if len(closes) >= 20 else sum(closes) / len(closes)
                 macd_line = ema12 - ema26
@@ -113,7 +120,7 @@ def analyze_pair_history(pair, seed_offset=0):
                 else: put_score += 15
 
                 if pattern_bias == 'CALL': call_score += 10
-                elif pattern_bias == 'PUT': put_score += 10
+                elif pattern_bias == 'PUT': call_score += 10
 
                 if call_score > put_score:
                     direction = 'CALL'
@@ -130,7 +137,6 @@ def analyze_pair_history(pair, seed_offset=0):
     except Exception as e:
         print(f"Error fetching candles for {pair}:", e)
 
-    # Dynamic Live Momentum calculation (No static hardcoded direction)
     now_ts = int(datetime.now().timestamp()) + seed_offset + sum(ord(c) for c in pair)
     direction = 'CALL' if (now_ts % 2 == 0) else 'PUT'
     dynamic_acc = round(88.0 + (now_ts % 10) * 0.8, 1)
@@ -138,13 +144,180 @@ def analyze_pair_history(pair, seed_offset=0):
     return direction, dynamic_acc, 75, "Live Market Momentum Alignment"
 
 
+# --- AUTHENTICATION & LICENSE ROUTES ---
+
+@app.route('/auth', methods=['GET', 'POST'])
+def auth_page():
+    error = None
+    if request.method == 'POST':
+        key = request.form.get('license_key', '').strip()
+        device_id = request.form.get('device_id', '').strip()
+        
+        licenses = load_licenses()
+        if key in licenses:
+            lic = licenses[key]
+            # Check expiry
+            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+            if datetime.now() > exp_date:
+                error = "License Key has expired!"
+            else:
+                devices = lic.get('devices', [])
+                max_dev = lic.get('max_devices', 1)
+                
+                if device_id in devices:
+                    session['license_key'] = key
+                    session['device_id'] = device_id
+                    return redirect(url_for('index'))
+                elif len(devices) < max_dev:
+                    devices.append(device_id)
+                    lic['devices'] = devices
+                    save_licenses(licenses)
+                    session['license_key'] = key
+                    session['device_id'] = device_id
+                    return redirect(url_for('index'))
+                else:
+                    error = f"Device limit reached! This key is already bound to {max_dev} device(s)."
+        else:
+            error = "Invalid License Key!"
+            
+    return render_template('auth.html', error=error)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('license_key', None)
+    return redirect(url_for('auth_page'))
+
+
 @app.route('/')
 def index():
+    lic_key = session.get('license_key')
+    if not lic_key:
+        return redirect(url_for('auth_page'))
+    
+    licenses = load_licenses()
+    if lic_key not in licenses:
+        session.pop('license_key', None)
+        return redirect(url_for('auth_page'))
+        
+    lic = licenses[lic_key]
+    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+    if datetime.now() > exp_date:
+        session.pop('license_key', None)
+        return redirect(url_for('auth_page'))
+
     return render_template('index.html', pairs=PAIRS)
 
 
+@app.route('/api/profile_info')
+def profile_info():
+    lic_key = session.get('license_key')
+    if not lic_key:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    licenses = load_licenses()
+    if lic_key not in licenses:
+        return jsonify({'success': False, 'error': 'Invalid License'}), 401
+        
+    lic = licenses[lic_key]
+    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
+    remaining_days = (exp_date - datetime.now()).days
+    if remaining_days < 0: remaining_days = 0
+
+    return jsonify({
+        'success': True,
+        'name': lic.get('name', 'VIP Member'),
+        'key': lic_key,
+        'created_at': lic.get('created_at'),
+        'expires_at': lic.get('expires_at'),
+        'remaining_days': remaining_days,
+        'max_devices': lic.get('max_devices', 1),
+        'active_devices_count': len(lic.get('devices', []))
+    })
+
+
+# --- ADMIN PANEL ROUTES ---
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    error = None
+    if request.method == 'POST':
+        pwd = request.form.get('password', '')
+        if pwd == 'DARK-X-RAYHAN@99':
+            session['admin_logged'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            error = "Incorrect Admin Password!"
+    return render_template('admin_login.html', error=error)
+
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('admin_logged'):
+        return redirect(url_for('admin_login'))
+    licenses = load_licenses()
+    return render_template('admin_dashboard.html', licenses=licenses)
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged', None)
+    return redirect(url_for('admin_login'))
+
+
+@app.route('/api/admin/create_key', methods=['POST'])
+def api_create_key():
+    if not session.get('admin_logged'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    name = data.get('name', 'User').strip()
+    days = int(data.get('days', 30))
+    max_devices = int(data.get('max_devices', 1))
+    custom_key = data.get('custom_key', '').strip()
+
+    if not custom_key:
+        custom_key = f"DARK-{random.randint(1000,9999)}-{random.randint(1000,9999)}"
+
+    created_at = datetime.now().strftime('%Y-%m-%d')
+    expires_at = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
+
+    licenses = load_licenses()
+    licenses[custom_key] = {
+        'name': name,
+        'days': days,
+        'created_at': created_at,
+        'expires_at': expires_at,
+        'max_devices': max_devices,
+        'devices': []
+    }
+    save_licenses(licenses)
+
+    return jsonify({'success': True, 'key': custom_key})
+
+
+@app.route('/api/admin/delete_key', methods=['POST'])
+def api_delete_key():
+    if not session.get('admin_logged'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    key = data.get('key')
+    
+    licenses = load_licenses()
+    if key in licenses:
+        del licenses[key]
+        save_licenses(licenses)
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Key not found'})
+
+
+# --- TRADING & SIGNAL API ROUTES ---
+
 @app.route('/api/analyze')
 def analyze():
+    if not session.get('license_key'):
+        return jsonify({'error': 'Unauthorized'}), 401
     pair = request.args.get('pair', 'EUR/USD')
     direction, accuracy, score, reason = analyze_pair_history(pair)
     return jsonify({
@@ -168,6 +341,8 @@ def parse_time_string(time_str):
 
 @app.route('/api/generate_future_signals', methods=['POST'])
 def generate_future_signals():
+    if not session.get('license_key'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
     try:
         data = request.json or {}
         selected_pairs = data.get('pairs', PAIRS)
@@ -195,9 +370,7 @@ def generate_future_signals():
         curr = start_dt
         step = 0
 
-        # Dynamic generation per minute slot without repeating static pair loops
         while curr <= end_dt and len(signals) < 20:
-            # Pick pair dynamically based on live market analysis for that time slot
             random.seed(int(curr.timestamp()) + step)
             shuffled_pairs = list(selected_pairs)
             random.shuffle(shuffled_pairs)
@@ -253,6 +426,8 @@ def send_photo_in_background(token, chat_id, text_msg, target_url, clean_pair):
 
 @app.route('/api/send_telegram_signal', methods=['POST'])
 def send_telegram_signal():
+    if not session.get('license_key'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
     try:
         data = request.json or {}
         token = data.get('token')
