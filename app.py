@@ -29,7 +29,6 @@ def save_licenses(data):
     except Exception as e:
         print("Error saving licenses:", e)
 
-# Complete Trading Pairs List
 PAIRS = [
     'EUR/USD', 'USD/JPY', 'CAD/JPY', 'AUD/CAD', 
     'GBP/USD', 'EUR/JPY', 'AUD/JPY', 'AUD/USD', 
@@ -147,8 +146,6 @@ def analyze_pair_history(pair, seed_offset=0):
     return direction, dynamic_acc, 75, "Live Market Momentum Alignment"
 
 
-# --- AUTHENTICATION & LICENSE ROUTES ---
-
 @app.route('/auth', methods=['GET', 'POST'])
 def auth_page():
     error = None
@@ -169,15 +166,13 @@ def auth_page():
             
             devices = lic.get('devices', [])
             max_dev = lic.get('max_devices', 1)
+            is_unlimited_dev = lic.get('is_unlimited_devices', False)
             
-            # If device is already registered for this key, allow login
             if device_id in devices:
                 session['license_key'] = key
                 session['device_id'] = device_id
                 return redirect(url_for('index'))
-            
-            # If slot is available, bind this new device permanently
-            elif len(devices) < max_dev:
+            elif is_unlimited_dev or max_dev >= 9999 or len(devices) < max_dev:
                 if device_id not in devices:
                     devices.append(device_id)
                 lic['devices'] = devices
@@ -186,7 +181,6 @@ def auth_page():
                 session['device_id'] = device_id
                 return redirect(url_for('index'))
             else:
-                # Device limit reached & trying from a new device -> Strict Error Message
                 error = "Limited access contact owner"
         else:
             error = "Invalid License Key!"
@@ -248,6 +242,11 @@ def profile_info():
             remaining_days_text = "Active"
         expires_at_text = lic.get('expires_at')
 
+    if lic.get('is_unlimited_devices') or lic.get('max_devices', 1) >= 9999:
+        devices_text = f"{len(lic.get('devices', []))} / Unlimited Devices"
+    else:
+        devices_text = f"{len(lic.get('devices', []))} / {lic.get('max_devices', 1)} Device(s)"
+
     return jsonify({
         'success': True,
         'name': lic.get('name', 'VIP Member'),
@@ -255,12 +254,10 @@ def profile_info():
         'created_at': lic.get('created_at'),
         'expires_at': expires_at_text,
         'remaining_days': remaining_days_text,
-        'max_devices': lic.get('max_devices', 1),
+        'max_devices': devices_text,
         'active_devices_count': len(lic.get('devices', []))
     })
 
-
-# --- ADMIN PANEL ROUTES ---
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
@@ -297,7 +294,7 @@ def api_create_key():
     data = request.json or {}
     name = data.get('name', 'User').strip()
     is_unlimited = data.get('is_unlimited', False)
-    max_devices = int(data.get('max_devices', 1))
+    is_unlimited_devices = data.get('is_unlimited_devices', False)
     custom_key = data.get('custom_key', '').strip()
 
     if not custom_key:
@@ -312,11 +309,17 @@ def api_create_key():
         days = int(data.get('days', 30))
         expires_at = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
 
+    if is_unlimited_devices:
+        max_devices = 99999
+    else:
+        max_devices = int(data.get('max_devices', 1))
+
     licenses = load_licenses()
     licenses[custom_key] = {
         'name': name,
         'days': days,
         'is_unlimited': is_unlimited,
+        'is_unlimited_devices': is_unlimited_devices,
         'created_at': created_at,
         'expires_at': expires_at,
         'max_devices': max_devices,
@@ -342,8 +345,6 @@ def api_delete_key():
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Key not found'})
 
-
-# --- TRADING & SIGNAL API ROUTES ---
 
 @app.route('/api/analyze')
 def analyze():
