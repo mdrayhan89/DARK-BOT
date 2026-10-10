@@ -10,15 +10,18 @@
         .container { max-width: 900px; margin: 0 auto; background: #14171d; border: 1px solid #232730; border-radius: 12px; padding: 20px; }
         h2 { color: #e5b842; margin-bottom: 15px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
         .section { background: #1a1e26; border: 1px solid #282d38; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px; }
         label { display: block; color: #8a94a6; font-size: 11px; font-weight: bold; margin-bottom: 4px; }
-        input { width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 8px; border-radius: 6px; outline: none; }
-        .btn { padding: 10px 15px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 11px; }
+        input[type="text"], input[type="number"] { width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 8px; border-radius: 6px; outline: none; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 25px; font-size: 12px; color: #00ff88; font-weight: bold; cursor: pointer; }
+        .checkbox-group input { width: 16px; height: 16px; cursor: pointer; }
+        .btn { padding: 10px 15px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 11px; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #282d38; }
         th { color: #e5b842; background: #111318; }
         .logout-btn { background: #374151; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; }
+        .badge-unlimited { color: #00ff88; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -40,8 +43,20 @@
                 <input type="number" id="keyDays" value="30">
             </div>
             <div>
-                <label>DEVICE LIMIT (1 = Single, 2+ = Multi):</label>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="unlimitedCheck" onchange="toggleUnlimited(this)">
+                    <span>♾️ UNLIMITED DAYS</span>
+                </label>
+            </div>
+            <div>
+                <label>DEVICE LIMIT:</label>
                 <input type="number" id="keyDevices" value="1">
+            </div>
+            <div>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="unlimitedDevCheck" onchange="toggleUnlimitedDev(this)">
+                    <span>♾️ UNLIMITED DEVICES</span>
+                </label>
             </div>
             <div>
                 <label>CUSTOM KEY (OPTIONAL):</label>
@@ -58,7 +73,7 @@
                 <tr>
                     <th>Key</th>
                     <th>Name</th>
-                    <th>Expires</th>
+                    <th>Expires / Status</th>
                     <th>Devices</th>
                     <th>Action</th>
                 </tr>
@@ -68,8 +83,20 @@
                 <tr>
                     <td><code>{{ k }}</code></td>
                     <td>{{ v.name }}</td>
-                    <td>{{ v.expires_at }}</td>
-                    <td>{{ v.devices | length }} / {{ v.max_devices }}</td>
+                    <td>
+                        {% if v.is_unlimited or v.days == 99999 %}
+                            <span class="badge-unlimited">♾️ Unlimited / Lifetime</span>
+                        {% else %}
+                            {{ v.expires_at }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if v.is_unlimited_devices or v.max_devices >= 9999 %}
+                            <span class="badge-unlimited">♾️ Unlimited ({{ v.devices | length }})</span>
+                        {% else %}
+                            {{ v.devices | length }} / {{ v.max_devices }}
+                        {% endif %}
+                    </td>
                     <td><button class="btn btn-danger" onclick="deleteKey('{{ k }}')">Delete</button></td>
                 </tr>
                 {% endfor %}
@@ -79,9 +106,37 @@
 </div>
 
 <script>
+    function toggleUnlimited(chk) {
+        const daysInput = document.getElementById('keyDays');
+        if(chk.checked) {
+            daysInput.disabled = true;
+            daysInput.value = "";
+            daysInput.style.opacity = "0.5";
+        } else {
+            daysInput.disabled = false;
+            daysInput.value = "30";
+            daysInput.style.opacity = "1";
+        }
+    }
+
+    function toggleUnlimitedDev(chk) {
+        const devInput = document.getElementById('keyDevices');
+        if(chk.checked) {
+            devInput.disabled = true;
+            devInput.value = "";
+            devInput.style.opacity = "0.5";
+        } else {
+            devInput.disabled = false;
+            devInput.value = "1";
+            devInput.style.opacity = "1";
+        }
+    }
+
     async function createKey() {
         const name = document.getElementById('keyName').value;
+        const is_unlimited = document.getElementById('unlimitedCheck').checked;
         const days = document.getElementById('keyDays').value;
+        const is_unlimited_devices = document.getElementById('unlimitedDevCheck').checked;
         const max_devices = document.getElementById('keyDevices').value;
         const custom_key = document.getElementById('customKey').value;
 
@@ -90,7 +145,7 @@
         const res = await fetch('/api/admin/create_key', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, days, max_devices, custom_key})
+            body: JSON.stringify({name, is_unlimited, days, is_unlimited_devices, max_devices, custom_key})
         });
         const data = await res.json();
         if(data.success) {
