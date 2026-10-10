@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DARK Bot - License Verification</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0d0f12; color: #ffffff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+        .card { width: 100%; max-width: 400px; background: #14171d; border-radius: 12px; padding: 25px; border: 1px solid #232730; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        h2 { color: #e5b842; font-size: 18px; margin-bottom: 20px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; color: #8a94a6; font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+        input { width: 100%; background: #0d0f12; border: 1px solid #333946; color: #fff; padding: 10px; border-radius: 6px; outline: none; }
+        .btn { width: 100%; padding: 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .error { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🔐 DARK-BOT LICENSE LOGIN</h2>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+        <div class="form-group">
+            <label>ENTER LICENSE KEY:</label>
+            <input type="text" name="license_key" placeholder="e.g. DARK-XXXX-XXXX" required>
+        </div>
+        <input type="hidden" name="device_id" id="deviceIdInput">
+        <button type="submit" class="btn">Access Bot</button>
+    </form>
+</div>
+<script>
+    // Generate/Retrieve Unique Device ID fingerprint
+    let devId = localStorage.getItem('dark_device_id');
+    if (!devId) {
+        devId = 'dev_' + Math.random().toString(36.substring(2)) + Date.now().toString(36);
+        localStorage.setItem('dark_device_id', devId);
+    }
+    document.getElementById('deviceIdInput').value = devId;
+</script>
+</body>
+</html>
