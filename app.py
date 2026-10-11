@@ -7,40 +7,64 @@ import urllib.parse
 import threading
 import random
 from datetime import datetime, timedelta
+from pymongo import MongoClient
 
 app = Flask(__name__)
 app.secret_key = 'dark_bot_secure_secret_key_2026'
 
-JSONBIN_API_KEY = "$2a$10$q/35T39uU3xqvQJ2AeyOjO0bC0gt865vWSeWxQkgggb1uDOIatOzm"
-JSONBIN_BIN_ID = "6acbc20dac6210605a28548e"
+# MongoDB Connection String configured with your credentials
+MONGO_URI = "mongodb+srv://islamrabby655_db_user:JNCdgfdagg28PxKj@cluster0.hhtdrfg.mongodb.net/?appName=Cluster0"
+
+try:
+    client = MongoClient(MONGO_URI)
+    db = client['dark_bot_db']
+    licenses_col = db['licenses']
+    print("MongoDB Connected Successfully!")
+except Exception as e:
+    print("MongoDB Connection Error:", e)
 
 def load_licenses():
-    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}/latest"
-    headers = {
-        'X-Master-Key': JSONBIN_API_KEY
-    }
     try:
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            record = data.get('record', {})
-            if isinstance(record, dict):
-                return record
+        all_docs = list(licenses_col.find({}, {'_id': False}))
+        licenses = {}
+        for doc in all_docs:
+            key = doc.get('key')
+            if key:
+                licenses[key] = {
+                    'name': doc.get('name'),
+                    'days': doc.get('days'),
+                    'is_unlimited': doc.get('is_unlimited'),
+                    'is_unlimited_devices': doc.get('is_unlimited_devices'),
+                    'created_at': doc.get('created_at'),
+                    'expires_at': doc.get('expires_at'),
+                    'max_devices': doc.get('max_devices'),
+                    'devices': doc.get('devices', [])
+                }
+        return licenses
     except Exception as e:
-        print("Error loading licenses from JSONBin:", e)
-    
-    return {}
+        print("Error loading licenses from MongoDB:", e)
+        return {}
 
 def save_licenses(data):
-    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
-    headers = {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY
-    }
     try:
-        requests.put(url, json=data, headers=headers, timeout=5)
+        for key, lic_data in data.items():
+            licenses_col.update_one(
+                {'key': key},
+                {'$set': {
+                    'key': key,
+                    'name': lic_data.get('name'),
+                    'days': lic_data.get('days'),
+                    'is_unlimited': lic_data.get('is_unlimited'),
+                    'is_unlimited_devices': lic_data.get('is_unlimited_devices'),
+                    'created_at': lic_data.get('created_at'),
+                    'expires_at': lic_data.get('expires_at'),
+                    'max_devices': lic_data.get('max_devices'),
+                    'devices': lic_data.get('devices', [])
+                }},
+                upsert=True
+            )
     except Exception as e:
-        print("Error saving licenses to JSONBin:", e)
+        print("Error saving licenses to MongoDB:", e)
 
 PAIRS = [
     'EUR/USD', 'USD/JPY', 'CAD/JPY', 'AUD/CAD', 
@@ -296,8 +320,6 @@ def admin_dashboard():
     if not session.get('admin_logged'):
         return redirect(url_for('admin_login'))
     licenses = load_licenses()
-    if not isinstance(licenses, dict):
-        licenses = {}
     return render_template('admin_dashboard.html', licenses=licenses, now_str=datetime.now().strftime('%Y-%m-%d'))
 
 
@@ -336,9 +358,6 @@ def api_create_key():
         max_devices = int(data.get('max_devices', 1))
 
     licenses = load_licenses()
-    if not isinstance(licenses, dict):
-        licenses = {}
-        
     licenses[custom_key] = {
         'name': name,
         'days': days,
@@ -364,8 +383,10 @@ def api_delete_key():
     
     licenses = load_licenses()
     if key in licenses:
-        del licenses[key]
-        save_licenses(licenses)
+        try:
+            licenses_col.delete_one({'key': key})
+        except Exception:
+            pass
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Key not found'})
 
@@ -496,7 +517,7 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-        tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
+5        tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         requests.post(tg_text_url, json={'chat_id': chat_id, 'text': text_msg}, timeout=5)
 
         if with_ss:
