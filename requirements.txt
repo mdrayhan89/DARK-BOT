@@ -1,5 +1,3 @@
 Flask
 gunicorn
 requests
-pymongo
-dnspython
