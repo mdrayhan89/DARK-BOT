@@ -25,12 +25,11 @@ def load_licenses():
         if res.status_code == 200:
             data = res.json()
             record = data.get('record', {})
-            if isinstance(record, dict) and record:
+            if isinstance(record, dict):
                 return record
     except Exception as e:
         print("Error loading licenses from JSONBin:", e)
     
-    # Fallback local file if any network issue
     if os.path.exists('licenses.json'):
         try:
             with open('licenses.json', 'r') as f:
@@ -50,7 +49,6 @@ def save_licenses(data):
     except Exception as e:
         print("Error saving licenses to JSONBin:", e)
     
-    # Backup save locally
     try:
         with open('licenses.json', 'w') as f:
             json.dump(data, f, indent=4)
@@ -185,7 +183,6 @@ def auth_page():
         if key in licenses:
             lic = licenses[key]
             
-            # Check Expiry Date
             if not lic.get('is_unlimited') and lic.get('days') != 99999:
                 try:
                     exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d').date()
@@ -198,7 +195,6 @@ def auth_page():
             max_dev = int(lic.get('max_devices', 1))
             is_unlimited_dev = lic.get('is_unlimited_devices', False)
             
-            # Strict Device Limit Validation & Locking
             if device_id in devices:
                 session['license_key'] = key
                 session['device_id'] = device_id
@@ -351,6 +347,9 @@ def api_create_key():
         max_devices = int(data.get('max_devices', 1))
 
     licenses = load_licenses()
+    if not isinstance(licenses, dict):
+        licenses = {}
+        
     licenses[custom_key] = {
         'name': name,
         'days': days,
