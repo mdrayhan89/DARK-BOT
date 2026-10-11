@@ -517,7 +517,7 @@ def send_telegram_signal():
         if not token or not chat_id:
             return jsonify({'success': False, 'error': 'Missing Token or Chat ID'}), 400
 
-5        tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
+        tg_text_url = f"https://api.telegram.org/bot{token}/sendMessage"
         requests.post(tg_text_url, json={'chat_id': chat_id, 'text': text_msg}, timeout=5)
 
         if with_ss:
