@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = 'dark_bot_secure_secret_key_2026'
 
-# JSONBin Credentials
 JSONBIN_API_KEY = "$2a$10$q/35T39uU3xqvQJ2AeyOjO0bC0gt865vWSeWxQkgggb1uDOIatOzm"
 JSONBIN_BIN_ID = "6acbc20dac6210605a28548e"
 
@@ -30,12 +29,6 @@ def load_licenses():
     except Exception as e:
         print("Error loading licenses from JSONBin:", e)
     
-    if os.path.exists('licenses.json'):
-        try:
-            with open('licenses.json', 'r') as f:
-                return json.load(f)
-        except Exception:
-            return {}
     return {}
 
 def save_licenses(data):
@@ -48,12 +41,6 @@ def save_licenses(data):
         requests.put(url, json=data, headers=headers, timeout=5)
     except Exception as e:
         print("Error saving licenses to JSONBin:", e)
-    
-    try:
-        with open('licenses.json', 'w') as f:
-            json.dump(data, f, indent=4)
-    except Exception:
-        pass
 
 PAIRS = [
     'EUR/USD', 'USD/JPY', 'CAD/JPY', 'AUD/CAD', 
@@ -309,7 +296,9 @@ def admin_dashboard():
     if not session.get('admin_logged'):
         return redirect(url_for('admin_login'))
     licenses = load_licenses()
-    return render_template('admin_dashboard.html', licenses=licenses, now_date=datetime.now().date())
+    if not isinstance(licenses, dict):
+        licenses = {}
+    return render_template('admin_dashboard.html', licenses=licenses, now_str=datetime.now().strftime('%Y-%m-%d'))
 
 
 @app.route('/admin/logout')
