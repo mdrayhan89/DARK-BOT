@@ -7,64 +7,37 @@ import urllib.parse
 import threading
 import random
 from datetime import datetime, timedelta
-from pymongo import MongoClient
 
 app = Flask(__name__)
 app.secret_key = 'dark_bot_secure_secret_key_2026'
 
-# MongoDB Connection String with timeout to prevent worker locking
-MONGO_URI = "mongodb+srv://islamrabby655_db_user:JNCdgfdagg28PxKj@cluster0.hhtdrfg.mongodb.net/?appName=Cluster0"
-
-try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    db = client['dark_bot_db']
-    licenses_col = db['licenses']
-    print("MongoDB Connected Successfully!")
-except Exception as e:
-    print("MongoDB Connection Error:", e)
+# Updated JSONBin Configuration with your provided credentials
+JSONBIN_BIN_ID = '6acbc20dac6210605a28548e'
+JSONBIN_API_KEY = '$2a$10$q/35T39uU3xqvQJ2AeyOjO0bC0gt865vWSeWxQkgggb1uDOIatOzm'
 
 def load_licenses():
     try:
-        all_docs = list(licenses_col.find({}, {'_id': False}))
-        licenses = {}
-        for doc in all_docs:
-            key = doc.get('key')
-            if key:
-                licenses[key] = {
-                    'name': doc.get('name'),
-                    'days': doc.get('days'),
-                    'is_unlimited': doc.get('is_unlimited'),
-                    'is_unlimited_devices': doc.get('is_unlimited_devices'),
-                    'created_at': doc.get('created_at'),
-                    'expires_at': doc.get('expires_at'),
-                    'max_devices': doc.get('max_devices'),
-                    'devices': doc.get('devices', [])
-                }
-        return licenses
+        url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}/latest"
+        headers = {'X-Master-Key': JSONBIN_API_KEY}
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            data = res.json().get('record', {})
+            return data.get('licenses', {})
     except Exception as e:
-        print("Error loading licenses from MongoDB:", e)
-        return {}
+        print("Error loading licenses from JSONBin:", e)
+    return {}
 
 def save_licenses(data):
     try:
-        for key, lic_data in data.items():
-            licenses_col.update_one(
-                {'key': key},
-                {'$set': {
-                    'key': key,
-                    'name': lic_data.get('name'),
-                    'days': lic_data.get('days'),
-                    'is_unlimited': lic_data.get('is_unlimited'),
-                    'is_unlimited_devices': lic_data.get('is_unlimited_devices'),
-                    'created_at': lic_data.get('created_at'),
-                    'expires_at': lic_data.get('expires_at'),
-                    'max_devices': lic_data.get('max_devices'),
-                    'devices': lic_data.get('devices', [])
-                }},
-                upsert=True
-            )
+        url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': JSONBIN_API_KEY
+        }
+        payload = {'licenses': data}
+        requests.put(url, headers=headers, json=payload, timeout=5)
     except Exception as e:
-        print("Error saving licenses to MongoDB:", e)
+        print("Error saving licenses to JSONBin:", e)
 
 PAIRS = [
     'EUR/USD', 'USD/JPY', 'CAD/JPY', 'AUD/CAD', 
@@ -389,10 +362,8 @@ def api_delete_key():
     
     licenses = load_licenses()
     if key in licenses:
-        try:
-            licenses_col.delete_one({'key': key})
-        except Exception:
-            pass
+        del licenses[key]
+        save_licenses(licenses)
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Key not found'})
 
