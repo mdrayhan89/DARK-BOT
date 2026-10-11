@@ -122,7 +122,7 @@ def analyze_pair_history(pair, seed_offset=0):
                 else: seller_p += 15
 
                 if pattern_bias == 'CALL': call_score += 10
-                elif pattern_bias == 'PUT': put_score += 10
+                elif pattern_bias == 'PUT': call_score += 10
 
                 if call_score > put_score:
                     direction = 'CALL'
@@ -157,7 +157,7 @@ def auth_page():
         if key in licenses:
             lic = licenses[key]
             
-            # Check Expiry Date properly
+            # Check Expiry Date
             if not lic.get('is_unlimited') and lic.get('days') != 99999:
                 try:
                     exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d').date()
@@ -170,11 +170,21 @@ def auth_page():
             max_dev = int(lic.get('max_devices', 1))
             is_unlimited_dev = lic.get('is_unlimited_devices', False)
             
+            # 100% Strict Device Check Logic
             if device_id in devices:
                 session['license_key'] = key
                 session['device_id'] = device_id
                 return redirect(url_for('index'))
-            elif is_unlimited_dev or max_dev >= 9999 or len(devices) < max_dev:
+            
+            if is_unlimited_dev or max_dev >= 9999:
+                if device_id not in devices:
+                    devices.append(device_id)
+                lic['devices'] = devices
+                save_licenses(licenses)
+                session['license_key'] = key
+                session['device_id'] = device_id
+                return redirect(url_for('index'))
+            elif len(devices) < max_dev:
                 if device_id not in devices:
                     devices.append(device_id)
                 lic['devices'] = devices
