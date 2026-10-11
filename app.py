@@ -12,11 +12,11 @@ from pymongo import MongoClient
 app = Flask(__name__)
 app.secret_key = 'dark_bot_secure_secret_key_2026'
 
-# MongoDB Connection String configured with your credentials
+# MongoDB Connection String with timeout to prevent worker locking
 MONGO_URI = "mongodb+srv://islamrabby655_db_user:JNCdgfdagg28PxKj@cluster0.hhtdrfg.mongodb.net/?appName=Cluster0"
 
 try:
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client['dark_bot_db']
     licenses_col = db['licenses']
     print("MongoDB Connected Successfully!")
@@ -349,13 +349,19 @@ def api_create_key():
         days = 99999
         expires_at = "2099-12-31"
     else:
-        days = int(data.get('days', 30))
+        try:
+            days = int(data.get('days', 30))
+        except (ValueError, TypeError):
+            days = 30
         expires_at = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
 
     if is_unlimited_devices:
         max_devices = 99999
     else:
-        max_devices = int(data.get('max_devices', 1))
+        try:
+            max_devices = int(data.get('max_devices', 1))
+        except (ValueError, TypeError):
+            max_devices = 1
 
     licenses = load_licenses()
     licenses[custom_key] = {
