@@ -11,23 +11,51 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = 'dark_bot_secure_secret_key_2026'
 
-LICENSE_FILE = 'licenses.json'
+# JSONBin Credentials
+JSONBIN_API_KEY = "$2a$10$q/35T39uU3xqvQJ2AeyOjO0bC0gt865vWSeWxQkgggb1uDOIatOzm"
+JSONBIN_BIN_ID = "6acbc20dac6210605a28548e"
 
 def load_licenses():
-    if os.path.exists(LICENSE_FILE):
+    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}/latest"
+    headers = {
+        'X-Master-Key': JSONBIN_API_KEY
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            record = data.get('record', {})
+            if isinstance(record, dict) and record:
+                return record
+    except Exception as e:
+        print("Error loading licenses from JSONBin:", e)
+    
+    # Fallback local file if any network issue
+    if os.path.exists('licenses.json'):
         try:
-            with open(LICENSE_FILE, 'r') as f:
+            with open('licenses.json', 'r') as f:
                 return json.load(f)
         except Exception:
             return {}
     return {}
 
 def save_licenses(data):
+    url = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY
+    }
     try:
-        with open(LICENSE_FILE, 'w') as f:
-            json.dump(data, f, indent=4)
+        requests.put(url, json=data, headers=headers, timeout=5)
     except Exception as e:
-        print("Error saving licenses:", e)
+        print("Error saving licenses to JSONBin:", e)
+    
+    # Backup save locally
+    try:
+        with open('licenses.json', 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception:
+        pass
 
 PAIRS = [
     'EUR/USD', 'USD/JPY', 'CAD/JPY', 'AUD/CAD', 
@@ -166,28 +194,24 @@ def auth_page():
                 except Exception:
                     pass
             
-            devices = lic.get('devices', [])
+            devices = lic.setdefault('devices', [])
             max_dev = int(lic.get('max_devices', 1))
             is_unlimited_dev = lic.get('is_unlimited_devices', False)
             
-            # 100% Strict Device Check Logic
+            # Strict Device Limit Validation & Locking
             if device_id in devices:
                 session['license_key'] = key
                 session['device_id'] = device_id
                 return redirect(url_for('index'))
             
             if is_unlimited_dev or max_dev >= 9999:
-                if device_id not in devices:
-                    devices.append(device_id)
-                lic['devices'] = devices
+                devices.append(device_id)
                 save_licenses(licenses)
                 session['license_key'] = key
                 session['device_id'] = device_id
                 return redirect(url_for('index'))
             elif len(devices) < max_dev:
-                if device_id not in devices:
-                    devices.append(device_id)
-                lic['devices'] = devices
+                devices.append(device_id)
                 save_licenses(licenses)
                 session['license_key'] = key
                 session['device_id'] = device_id
