@@ -156,16 +156,18 @@ def auth_page():
         licenses = load_licenses()
         if key in licenses:
             lic = licenses[key]
+            
+            # Check Expiry Date properly
             if not lic.get('is_unlimited') and lic.get('days') != 99999:
                 try:
-                    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
-                    if datetime.now() > exp_date:
+                    exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d').date()
+                    if datetime.now().date() > exp_date:
                         return render_template('auth.html', error="License Key has expired!")
                 except Exception:
                     pass
             
             devices = lic.get('devices', [])
-            max_dev = lic.get('max_devices', 1)
+            max_dev = int(lic.get('max_devices', 1))
             is_unlimited_dev = lic.get('is_unlimited_devices', False)
             
             if device_id in devices:
@@ -208,8 +210,8 @@ def index():
     lic = licenses[lic_key]
     if not lic.get('is_unlimited') and lic.get('days') != 99999:
         try:
-            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d')
-            if datetime.now() > exp_date:
+            exp_date = datetime.strptime(lic['expires_at'], '%Y-%m-%d').date()
+            if datetime.now().date() > exp_date:
                 session.pop('license_key', None)
                 return redirect(url_for('auth_page'))
         except Exception:
@@ -277,7 +279,7 @@ def admin_dashboard():
     if not session.get('admin_logged'):
         return redirect(url_for('admin_login'))
     licenses = load_licenses()
-    return render_template('admin_dashboard.html', licenses=licenses)
+    return render_template('admin_dashboard.html', licenses=licenses, now_date=datetime.now().date())
 
 
 @app.route('/admin/logout')
