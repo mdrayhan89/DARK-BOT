@@ -81,37 +81,39 @@
                 </tr>
             </thead>
             <tbody id="keyListBody">
-                {% for k, v in licenses.items() %}
-                <tr>
-                    <td><code>{{ k }}</code></td>
-                    <td>{{ v.name }}</td>
-                    <td>
-                        {% if v.is_unlimited or v.days == 99999 %}
-                            <span class="badge-unlimited">♾️ Unlimited / Lifetime</span>
-                        {% else %}
-                            Created: {{ v.created_at }}<br>
-                            Expires: <b>{{ v.expires_at }}</b><br>
-                            {% set exp_parts = v.expires_at.split('-') %}
-                            {% if exp_parts | length == 3 %}
-                                {% set exp_dt = exp_parts[0] ~ '-' ~ exp_parts[1] ~ '-' ~ exp_parts[2] %}
-                                {% if now_date.strftime('%Y-%m-%d') > exp_dt %}
+                {% if licenses %}
+                    {% for k, v in licenses.items() %}
+                    <tr>
+                        <td><code>{{ k }}</code></td>
+                        <td>{{ v.name }}</td>
+                        <td>
+                            {% if v.is_unlimited or v.days == 99999 %}
+                                <span class="badge-unlimited">♾️ Unlimited / Lifetime</span>
+                            {% else %}
+                                Created: {{ v.created_at }}<br>
+                                Expires: <b>{{ v.expires_at }}</b><br>
+                                {% if now_str > v.expires_at %}
                                     <span class="badge-expired">❌ EXPIRED</span>
                                 {% else %}
                                     <span class="badge-active">🟢 ACTIVE</span>
                                 {% endif %}
                             {% endif %}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if v.is_unlimited_devices or v.max_devices >= 9999 %}
-                            <span class="badge-unlimited">♾️ Unlimited ({{ v.devices | length }})</span>
-                        {% else %}
-                            {{ v.devices | length }} / {{ v.max_devices }}
-                        {% endif %}
-                    </td>
-                    <td><button class="btn btn-danger" onclick="deleteKey('{{ k }}')">Delete</button></td>
-                </tr>
-                {% endfor %}
+                        </td>
+                        <td>
+                            {% if v.is_unlimited_devices or v.max_devices >= 9999 %}
+                                <span class="badge-unlimited">♾️ Unlimited ({{ v.devices | length }})</span>
+                            {% else %}
+                                {{ v.devices | length }} / {{ v.max_devices }}
+                            {% endif %}
+                        </td>
+                        <td><button class="btn btn-danger" onclick="deleteKey('{{ k }}')">Delete</button></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; color:#8a94a6;">No license keys found.</td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
