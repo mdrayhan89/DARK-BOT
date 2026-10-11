@@ -124,11 +124,9 @@
         const daysInput = document.getElementById('keyDays');
         if(chk.checked) {
             daysInput.disabled = true;
-            daysInput.value = "";
             daysInput.style.opacity = "0.5";
         } else {
             daysInput.disabled = false;
-            daysInput.value = "30";
             daysInput.style.opacity = "1";
         }
     }
@@ -137,11 +135,9 @@
         const devInput = document.getElementById('keyDevices');
         if(chk.checked) {
             devInput.disabled = true;
-            devInput.value = "";
             devInput.style.opacity = "0.5";
         } else {
             devInput.disabled = false;
-            devInput.value = "1";
             devInput.style.opacity = "1";
         }
     }
@@ -156,17 +152,21 @@
 
         if(!name) { alert("Please enter user name!"); return; }
 
-        const res = await fetch('/api/admin/create_key', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, is_unlimited, days, is_unlimited_devices, max_devices, custom_key})
-        });
-        const data = await res.json();
-        if(data.success) {
-            alert("License Created Successfully! Key: " + data.key);
-            location.reload();
-        } else {
-            alert("Error creating key!");
+        try {
+            const res = await fetch('/api/admin/create_key', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, is_unlimited, days, is_unlimited_devices, max_devices, custom_key})
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert("License Created Successfully! Key: " + data.key);
+                location.reload();
+            } else {
+                alert("Error creating key!");
+            }
+        } catch (err) {
+            alert("Network or Server error!");
         }
     }
 
